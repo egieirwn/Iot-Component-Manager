@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Komponen - Campus IoT</title>
+</head>
+<body>
+
+    <!-- (Sidebar) -->
+    <aside>
+        <div>
+            <strong>Campus IoT</strong><br>
+            <small>Universitas</small>
+        </div>
+        
+        <hr>
+        
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><strong>Komponen</strong> (Aktif)</li>
+                <li><a href="peminjaman.html">Peminjaman Saya</a></li>
+            </ul>
+        </nav>
+        
+        <hr>
+        
+        <div>
+            <strong>Butuh bantuan?</strong><br>
+            <small>Hubungi administrator lab kampus.</small>
+        </div>
+    </aside>
+
+    <hr>
+
+    <!-- Header -->
+    <header>
+        <div>
+            <form action="#">
+                <label for="global-search">Pencarian Global:</label>
+                <input type="search" id="global-search" placeholder="Cari komponen, ID, atau kategori...">
+                <button type="submit">Cari</button>
+            </form>
+        </div>
+        <div>
+            <span>[Ikon Notifikasi]</span> | 
+            <strong>@username</strong>
+            <p><small>NIM xxxxxxxxx · Program Studi</small></p>
+        </div>
+    </header>
+
+    <hr>
+
+    <main>
+
+        <section>
+            <h1>Komponen</h1>
+            <p><small>8 jenis komponen · Universitas</small></p>
+            <button type="button">Ekspor daftar</button>
+        </section>
+
+        <br>
+
+        <!-- Filter dan Pencarian -->
+        <section>
+            <form action="#">
+                <label for="table-search">Pencarian Tabel:</label>
+                <input type="search" id="table-search" placeholder="Cari nama, ID, atau kategori">
+                
+                <label for="kategori">Kategori:</label>
+                <select id="kategori" name="kategori">
+                    <option value="semua">Semua kategori</option>
+                    <option value="mikrokontroler">Mikrokontroler</option>
+                    <option value="sensor">Sensor</option>
+                    <option value="modul">Modul</option>
+                    <option value="aksesoris">Aksesoris</option>
+                    <option value="display">Display</option>
+                </select>
+            </form>
+        </section>
+
+        <br>
+
+        <!-- Tabel Data Komponen -->
+        <section>
+            <table border="1" width="100%" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th align="left">Nama komponen</th>
+                        <th align="left">Kategori</th>
+                        <th align="left">Stok</th>
+                        <th align="left">Kondisi</th>
+                        <th align="left">Status</th>
+                        <th align="left">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Arduino Uno R3</td>
+                        <td>Mikrokontroler</td>
+                        <td>12</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>Sensor DHT22 (Suhu & Kelembaban)</td>
+                        <td>Sensor</td>
+                        <td>3</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>ESP32 DevKit V1</td>
+                        <td>Mikrokontroler</td>
+                        <td>0</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[DIPINJAM]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>Relay Module 4 Channel</td>
+                        <td>Modul</td>
+                        <td>7</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>Kabel Jumper Male-to-Female (40 pin)</td>
+                        <td>Aksesoris</td>
+                        <td>25</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>Sensor Ultrasonik HC-SR04</td>
+                        <td>Sensor</td>
+                        <td>2</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[DIPINJAM]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>Breadboard 830 Point</td>
+                        <td>Aksesoris</td>
+                        <td>15</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <td>OLED Display 0.96" I2C</td>
+                        <td>Display</td>
+                        <td>4</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="#">Lihat detail</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+</body>
+</html>

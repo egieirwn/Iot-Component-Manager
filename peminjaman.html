@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peminjaman Saya - Campus IoT</title>
+</head>
+<body>
+
+    <!-- Area Menu Samping (Sidebar) -->
+    <aside>
+        <div>
+            <strong>Campus IoT</strong><br>
+            <small>Universitas</small>
+        </div>
+        
+        <hr>
+        
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="component.html">Komponen</a></li>
+                <li><strong>Peminjaman Saya</strong> (Aktif)</li>
+            </ul>
+        </nav>
+        
+        <hr>
+        
+        <div>
+            <strong>Butuh bantuan?</strong><br>
+            <small>Hubungi administrator lab kampus.</small>
+        </div>
+    </aside>
+
+    <hr>
+
+    <!-- Area Header Atas -->
+    <header>
+        <div>
+            <form action="#">
+                <label for="global-search">Pencarian Global:</label>
+                <input type="search" id="global-search" placeholder="Cari komponen, ID, atau kategori...">
+            </form>
+        </div>
+        <div>
+            <span>[Ikon Notifikasi]</span> | 
+            <strong>@username</strong>
+            <p><small>NIM xxxxxxxxx · Program Studi</small></p>
+        </div>
+    </header>
+
+    <hr>
+
+    <!-- Area Konten Utama -->
+    <main>
+        
+        <!-- Bagian Judul Halaman & Tombol Aksi Utama -->
+        <section>
+            <h1>Peminjaman Saya</h1>
+            <p><small>2 peminjaman aktif · Per 5 Okt 2026</small></p>
+            <button type="button">Pinjam lagi</button>
+        </section>
+
+        <br>
+
+        <!-- Navigasi Tab Status Peminjaman -->
+        <nav>
+            <strong>Aktif (2)</strong> | 
+            <a href="#">Menunggu (0)</a> | 
+            <a href="#">Riwayat (0)</a>
+        </nav>
+
+        <br>
+
+        <!-- Tabel Daftar Peminjaman Aktif -->
+        <section>
+            <table border="1" width="100%" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th align="left">KOMPONEN</th>
+                        <th align="left">STATUS</th>
+                        <th align="left">TANGGAL JATUH TEMPO</th>
+                        <th align="left">HITUNG MUNDUR</th>
+                        <th align="left">LAB PENGAMBILAN</th>
+                        <th align="left">AKSI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong>Arduino Uno R3</strong><br>
+                            <small>MCU-00182 · qty 2</small>
+                        </td>
+                        <td><strong>[DIPINJAM]</strong></td>
+                        <td>12 Okt 2026</td>
+                        <td>7 hari tersisa</td>
+                        <td>Lab Sistem Tertanam</td>
+                        <td><button type="button">Kembalikan</button></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <strong>Sensor DHT22 (Suhu & Kelembaban)</strong><br>
+                            <small>SNS-00324 · qty 1</small>
+                        </td>
+                        <td><strong>[DIPINJAM]</strong></td>
+                        <td>8 Okt 2026</td>
+                        <td>3 hari tersisa</td>
+                        <td>Lab Sistem Tertanam</td>
+                        <td><button type="button">Kembalikan</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <br>
+
+        <!-- Kotak Informasi Kebijakan Pengembalian -->
+        <section>
+            <p>Kembalikan komponen ke lab yang sama dengan tempat pengambilan. <a href="#">Lihat kebijakan pengembalian</a></p>
+        </section>
+
+    </main>
+
+</body>
+</html>
