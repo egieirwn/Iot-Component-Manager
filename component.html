@@ -95,76 +95,32 @@
                         <th align="left">Aksi</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>Arduino Uno R3</td>
-                        <td>Mikrokontroler</td>
-                        <td>12</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>Sensor DHT22 (Suhu & Kelembaban)</td>
-                        <td>Sensor</td>
-                        <td>3</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>ESP32 DevKit V1</td>
-                        <td>Mikrokontroler</td>
-                        <td>0</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[DIPINJAM]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>Relay Module 4 Channel</td>
-                        <td>Modul</td>
-                        <td>7</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>Kabel Jumper Male-to-Female (40 pin)</td>
-                        <td>Aksesoris</td>
-                        <td>25</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>Sensor Ultrasonik HC-SR04</td>
-                        <td>Sensor</td>
-                        <td>2</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[DIPINJAM]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>Breadboard 830 Point</td>
-                        <td>Aksesoris</td>
-                        <td>15</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
-                    <tr>
-                        <td>OLED Display 0.96" I2C</td>
-                        <td>Display</td>
-                        <td>4</td>
-                        <td>Berfungsi</td>
-                        <td><strong>[TERSEDIA]</strong></td>
-                        <td><a href="#">Lihat detail</a></td>
-                    </tr>
+                <!-- Tag script yang tadinya di sini sudah dipindah ke bawah -->
+                <tbody id="data-komponen">
+                    <!-- Data komponen akan dimuat di sini oleh JavaScript -->
+        
                 </tbody>
             </table>
         </section>
 
     </main>
 
+    <!-- Modal Pop-up untuk Lihat Detail -->
+    <dialog id="modal-detail">
+        <h2>Detail Komponen</h2>
+        <p>Informasi detail akan muncul di sini.</p>
+        <button onclick="document.getElementById('modal-detail').close()">Tutup Detail</button>
+    </dialog>
+
+    <!-- Letakkan pemanggil JavaScript di sini, paling bawah sebelum tag penutup body -->
+    <script src="data-component.js"></script>
+    
+    <!-- Script tambahan untuk memunculkan modal dari tombol JavaScript -->
+    <script>
+        function lihatDetail(namaKomponen) {
+            // Anda bisa mengatur agar nama komponen muncul di dalam modal nantinya
+            document.getElementById('modal-detail').showModal();
+        }
+    </script>
 </body>
 </html>
