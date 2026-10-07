@@ -6,68 +6,57 @@
     <title>Komponen - Campus IoT</title>
 </head>
 <body>
-
-    <!-- (Sidebar) -->
     <aside>
         <div>
             <strong>Campus IoT</strong><br>
             <small>Universitas</small>
         </div>
-        
+
         <hr>
-        
-        <nav>
+
+        <nav aria-label="Navigasi utama">
             <ul>
                 <li><a href="dashboard.html">Dashboard</a></li>
                 <li><strong>Komponen</strong> (Aktif)</li>
                 <li><a href="peminjaman.html">Peminjaman Saya</a></li>
             </ul>
         </nav>
-        
+
         <hr>
-        
+
         <div>
             <strong>Butuh bantuan?</strong><br>
             <small>Hubungi administrator lab kampus.</small>
         </div>
     </aside>
 
-    <hr>
-
-    <!-- Header -->
     <header>
+        <form action="#">
+            <label for="global-search">Pencarian Global:</label>
+            <input type="search" id="global-search" placeholder="Cari komponen, ID, atau kategori...">
+            <button type="submit">Cari</button>
+        </form>
+
         <div>
-            <form action="#">
-                <label for="global-search">Pencarian Global:</label>
-                <input type="search" id="global-search" placeholder="Cari komponen, ID, atau kategori...">
-                <button type="submit">Cari</button>
-            </form>
-        </div>
-        <div>
-            <span>[Ikon Notifikasi]</span> | 
+            <span>[Ikon Notifikasi]</span> |
             <strong>@username</strong>
             <p><small>NIM xxxxxxxxx · Program Studi</small></p>
         </div>
     </header>
 
-    <hr>
-
     <main>
-
         <section>
             <h1>Komponen</h1>
             <p><small>Daftar Komponen · Universitas</small></p>
             <button type="button">Ekspor daftar</button>
         </section>
 
-        <br>
-
-        <!-- Filter dan Pencarian -->
         <section>
+            <h2>Pencarian dan Filter</h2>
             <form action="#">
                 <label for="table-search">Pencarian Tabel:</label>
                 <input type="search" id="table-search" placeholder="Cari nama, ID, atau kategori">
-                
+
                 <label for="kategori">Kategori:</label>
                 <select id="kategori" name="kategori">
                     <option value="semua">Semua kategori</option>
@@ -80,45 +69,35 @@
             </form>
         </section>
 
-        <br>
-
-        <!-- Tabel Data Komponen -->
         <section>
-            <table border="1" width="100%" cellpadding="8" cellspacing="0">
+            <h2>Data Komponen</h2>
+            <table>
                 <thead>
                     <tr>
-                        <th align="left">Nama komponen</th>
-                        <th align="left">Kategori</th>
-                        <th align="left">Stok</th>
-                        <th align="left">Kondisi</th>
-                        <th align="left">Status</th>
-                        <th align="left">Aksi</th>
+                        <th>Nama komponen</th>
+                        <th>Kategori</th>
+                        <th>Stok</th>
+                        <th>Kondisi</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
 
-                <tbody id="data-komponen">
-                    
-        
-                </tbody>
+                <tbody id="data-komponen"></tbody>
             </table>
         </section>
-
     </main>
 
-    <!-- Modal Pop-up untuk Lihat Detail -->
     <dialog id="modal-detail">
         <h2>Detail Komponen</h2>
         <p>Informasi detail akan muncul di sini.</p>
-        <button onclick="document.getElementById('modal-detail').close()">Tutup Detail</button>
+        <button type="button" onclick="document.getElementById('modal-detail').close()">Tutup Detail</button>
     </dialog>
 
-    
     <script src="js/data-component.js"></script>
-    
-    <!-- Script tambahan untuk memunculkan modal dari tombol JavaScript -->
+
     <script>
         function lihatDetail(namaKomponen) {
-            // Anda bisa mengatur agar nama komponen muncul di dalam modal nantinya
             document.getElementById('modal-detail').showModal();
         }
     </script>

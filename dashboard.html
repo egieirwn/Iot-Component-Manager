@@ -6,26 +6,24 @@
     <title>Dashboard - Campus IoT</title>
 </head>
 <body>
-
-    <!-- (Sidebar) -->
     <aside>
         <div>
             <strong>Campus IoT</strong><br>
             <small>Universitas</small>
         </div>
-        
+
         <hr>
-        
-        <nav>
+
+        <nav aria-label="Navigasi utama">
             <ul>
                 <li><strong>Dashboard</strong> (Aktif)</li>
                 <li><a href="component.html">Komponen</a></li>
                 <li><a href="peminjaman.html">Peminjaman Saya</a></li>
             </ul>
         </nav>
-        
+
         <hr>
-        
+
         <div>
             <strong>Butuh bantuan?</strong><br>
             <small>Hubungi administrator lab kampus.</small>
@@ -34,17 +32,14 @@
 
     <hr>
 
-    <!-- Header -->
     <header>
+        <form action="#">
+            <label for="search">Pencarian:</label>
+            <input type="search" id="search" placeholder="Cari komponen, ID, kategori...">
+            <button type="submit">Cari</button>
+        </form>
         <div>
-            <form action="#">
-                <label for="search">Pencarian:</label>
-                <input type="search" id="search" placeholder="Cari komponen, ID, kategori...">
-                <button type="submit">Cari</button>
-            </form>
-        </div>
-        <div>
-            <span>[Ikon Notifikasi]</span> | 
+            <span>[Ikon Notifikasi]</span> |
             <strong>@username</strong>
             <p><small>NIM xxxxxxxxx · Program Studi · Universitas</small></p>
         </div>
@@ -52,18 +47,15 @@
 
     <hr>
 
-    <!-- Dashboard -->
     <main>
         <section>
             <h1>Selamat pagi, @username</h1>
-            <p><small>Ringkasan Inventaris · 5 Okt 2026</small></p>
-            <button type="button">Lihat semua komponen</button>
+            <p><small>Ringkasan Inventaris · <time datetime="2026-10-05">5 Okt 2026</time></small></p>
+            <a href="component.html">Lihat semua komponen</a>
         </section>
 
-        <br>
-
-        <!-- Card -->
         <section>
+            <h2>Ringkasan Aktivitas</h2>
             <article>
                 <h3>Peminjaman aktif</h3>
                 <p><strong>1</strong></p>
@@ -73,9 +65,9 @@
             <article>
                 <h3>Kembali segera</h3>
                 <p><strong>1</strong></p>
-                <p><small>Jatuh tempo 8 Okt 2026</small></p>
+                <p><small>Jatuh tempo <time datetime="2026-10-08">8 Okt 2026</time></small></p>
             </article>
-            
+
             <article>
                 <h3>Komponen tersedia</h3>
                 <p><strong>6</strong></p>
@@ -83,31 +75,37 @@
             </article>
         </section>
 
-        <br>
-
-        <!-- Bagian Peminjaman -->
         <section>
             <h2>Peminjaman Aktif</h2>
-            <table border="1">
-                <tr>
-                    <td><strong>Sensor DHT22 (Suhu & Kelembaban)</strong></td>
-                    <td>1 unit</td>
-                    <td>[DIPINJAM]</td>
-                    <td>8 Okt 2026</td>
-                    <td>3 hari tersisa</td>
-                    <td><button type="button">Kembalikan</button></td>
-                </tr>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Komponen</th>
+                        <th scope="col">Jumlah</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Tanggal jatuh tempo</th>
+                        <th scope="col">Sisa waktu</th>
+                        <th scope="col">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row"><strong>Sensor DHT22 (Suhu & Kelembaban)</strong></th>
+                        <td>1 unit</td>
+                        <td>[DIPINJAM]</td>
+                        <td><time datetime="2026-10-08">8 Okt 2026</time></td>
+                        <td>3 hari tersisa</td>
+                        <td><button type="button">Kembalikan</button></td>
+                    </tr>
+                </tbody>
             </table>
         </section>
-
-        <br>
 
         <section>
             <h2>Komponen Populer</h2>
             <p><a href="#">Lihat semua komponen</a></p>
-            
+
             <div>
-                <!-- Produk 1 -->
                 <article>
                     <img src="assets/arduino.png" alt="Arduino Uno R3">
                     <h3>Arduino Uno R3</h3>
@@ -116,9 +114,6 @@
                     <p><strong>[TERSEDIA]</strong></p>
                 </article>
 
-                <br>
-
-                <!-- Produk 2 -->
                 <article>
                     <img src="assets/dht22.png" alt="Sensor DHT22">
                     <h3>Sensor DHT22 (Suhu & Kelembaban)</h3>
@@ -127,9 +122,6 @@
                     <p><strong>[TERSEDIA]</strong></p>
                 </article>
 
-                <br>
-
-                <!-- Produk 3 -->
                 <article>
                     <img src="assets/esp32.png" alt="ESP32 DevKit V1">
                     <h3>ESP32 DevKit V1</h3>
@@ -137,10 +129,8 @@
                     <p>Stok 0 unit</p>
                     <p><strong>[DIPINJAM]</strong></p>
                 </article>
-
             </div>
         </section>
-
     </main>
 
 </body>
