@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lengkapi profil - Campus IoT Universitas</title>
+</head>
+<body>
+  <header>
+    <p><strong>U</strong> <strong>Campus IoT - Universitas</strong> Inventaris Laboratorium</p>
+  </header>
+
+  <main>
+    <h1>Lengkapi profil Anda</h1>
+    <p>Isi data berikut untuk melanjutkan ke dashboard inventori IoT Universitas.</p>
+
+    <section>
+      <h2>Data kampus</h2>
+      <form action="dashboard.html" method="get">
+        <p>
+          <label for="first-name">Nama depan</label><br>
+          <input id="first-name" autocomplete="given-name" required>
+        </p>
+        <p>
+          <label for="last-name">Nama belakang</label><br>
+          <input id="last-name" autocomplete="family-name" required>
+        </p>
+        <p>
+          <label for="nim">NIM</label><br>
+          <input id="nim" autocomplete="off" required>
+        </p>
+        <p>
+          <label for="major">Jurusan</label><br>
+          <input id="major" required>
+        </p>
+        <p>
+          <label for="role">Peran</label><br>
+          <select id="role" name="role" required>
+            <option value="">Pilih peran</option>
+            <option value="mahasiswa">Mahasiswa</option>
+            <option value="dosen">Dosen</option>
+            <option value="laboran">Laboran</option>
+          </select>
+        </p>
+        <p>
+          <label for="phone">Nomor telepon</label><br>
+          <input id="phone" type="tel" autocomplete="tel" required>
+        </p>
+        <p>
+          <label for="main-lab">Lab utama</label><br>
+          <input id="main-lab" required>
+        </p>
+        <p><button type="submit">Simpan dan lanjutkan</button></p>
+      </form>
+    </section>
+
+    <aside>
+      <h2>Tips profil</h2>
+      <ol>
+        <li>Gunakan NIM dan nama sesuai data akademik Universitas.</li>
+        <li>Pilih jurusan yang sesuai dengan program studi Anda.</li>
+        <li>Nomor telepon digunakan untuk pengingat pengembalian komponen.</li>
+      </ol>
+      <section>
+        <h3>Catatan privasi</h3>
+        <p>Data profil hanya boleh dilihat oleh staf inventori IoT yang berwenang.</p>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>

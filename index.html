@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -6,54 +6,59 @@
     <title>Campus IoT Inventory</title>
 </head>
 <body>
-
     <header>
-        <div>
-            <strong>Campus IoT Inventory</strong>
-        </div>
-        <div>
-            <a href="dashboard.html" class="btn-link">Login</a>
-            <button type="button">Sign Up</button>
-        </div>
+        <p><strong>Campus IoT Inventory</strong></p>
+
+        <nav aria-label="Navigasi akun">
+            <ul>
+                <li><a href="login.html">Login</a></li>
+                <li><a href="register.html">Sign Up</a></li>
+            </ul>
+        </nav>
     </header>
 
-    <hr>
-
     <main>
-        <section>
-            <div>
-                <p><small>CAMPUS LAB RESOURCE SYSTEM</small></p>
-                
-                <h1>Find, borrow, and return IoT components with confidence.</h1>
-                
-                <p>A shared inventory for sensors, microcontrollers, kits, and lab equipment across campus—built for students and faculty.</p>
-                
-                <div>
-                    <a href="dashboard.html" class="btn-link">Login</a>
-                    <button type="button">Sign Up</button>
-                </div>
+        <section aria-labelledby="hero-title">
+            <p><small>CAMPUS LAB RESOURCE SYSTEM</small></p>
 
+            <h1 id="hero-title">
+                Find, borrow, and return IoT components with confidence.
+            </h1>
+
+            <p>
+                A shared inventory for sensors, microcontrollers, kits,
+                and lab equipment across campus, built for students and faculty.
+            </p>
+
+            <nav aria-label="Aksi utama">
                 <ul>
-                    <li>&#10003; Live availability</li>
-                    <li>&#10003; Campus verified</li>
-                    <li>&#10003; Easy returns</li>
+                    <li><a href="login.html">Login</a></li>
+                    <li><a href="register.html">Sign Up</a></li>
                 </ul>
-            </div>
+            </nav>
 
+            <ul>
+                <li>Live availability</li>
+                <li>Campus verified</li>
+                <li>Easy returns</li>
+            </ul>
 
-            <div>
-                <!-- Gambar placeholder -->
-                <img src="assets/arduino.png" alt="CAMPUS COMPONENTS IMAGE">
-                
-                <div>
-                    <p>
-                        <span>Lab inventory snapshot</span> | 
-                        <small>1,248 components · 18 labs</small>
-                    </p>
-                </div>
-            </div>
+            <figure>
+                <img
+                    src="assets/images/arduino.png"
+                    alt="Arduino Uno sebagai salah satu komponen inventori IoT kampus"
+                >
+
+                <figcaption>
+                    <p><strong>Lab inventory snapshot</strong></p>
+                    <p><small>1,248 components · 18 labs</small></p>
+                </figcaption>
+            </figure>
         </section>
     </main>
 
+    <footer>
+        <p>Campus IoT Inventory - Universitas</p>
+    </footer>
 </body>
 </html>

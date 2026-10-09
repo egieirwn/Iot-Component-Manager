@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masuk - Campus IoT Universitas</title>
+</head>
+<body>
+    <header>
+        <p>
+            <strong>U</strong>
+            <strong>Campus IoT - Universitas</strong>
+            Inventaris Laboratorium
+        </p>
+    </header>
+
+    <main>
+        <h1>Masuk ke inventori IoT</h1>
+
+        <p>
+            Gunakan akun kampus Universitas untuk mengakses komponen IoT.
+        </p>
+
+        <form action="dashboard.html" method="get">
+            <fieldset>
+                <legend>Informasi login</legend>
+
+                <p>
+                    <label for="email">Email kampus</label><br>
+                    <input
+                        id="email"
+                        type="email"
+                        autocomplete="email"
+                        pattern=".+@un\.ac\.id"
+                        title="Gunakan email kampus yang berakhiran @un.ac.id."
+                        required
+                    >
+                </p>
+
+                <p>
+                    <label for="password">Kata sandi</label><br>
+                    <input
+                        id="password"
+                        type="password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </p>
+            </fieldset>
+
+            <p>
+                <a href="forgot-password.html">Lupa kata sandi?</a>
+            </p>
+
+            <p>
+                <button type="submit">Masuk</button>
+            </p>
+        </form>
+
+        <p>
+            Belum punya akun?
+            <a href="register.html">Daftar</a>
+            untuk mengakses inventori IoT.
+        </p>
+    </main>
+</body>
+</html>
