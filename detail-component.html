@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Komponen Tersedia - Campus IoT</title>
+</head>
+
+<body>
+    <aside aria-label="Bilah samping">
+        <header>
+            <p><strong>Campus IoT</strong><br><small>Universitas</small></p>
+        </header>
+
+        <hr>
+
+        <nav aria-label="Navigasi utama">
+            <ul>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="component.html">Komponen</a></li>
+                <li><a href="peminjaman.html">Peminjaman Saya</a></li>
+            </ul>
+        </nav>
+
+        <hr>
+
+        <section aria-label="Bantuan">
+            <p>
+                <strong>Butuh bantuan?</strong><br>
+                <small>Hubungi administrator lab kampus.</small>
+            </p>
+        </section>
+    </aside>
+
+    <hr>
+
+    <header>
+        <form action="#" method="get">
+            <label for="search">Pencarian:</label>
+            <input type="search" id="search" name="q" placeholder="Cari komponen, ID, atau kategori...">
+            <button type="submit">Cari</button>
+        </form>
+
+        <section aria-label="Profil pengguna">
+            <span>[Ikon Notifikasi]</span> |
+            <strong>Akira Tomoe</strong>
+            <p><small>NIM 2210511045 · Teknik Informatika</small></p>
+        </section>
+    </header>
+
+    <hr>
+
+    <main>
+        <header>
+            <nav aria-label="Navigasi rekam jejak">
+                <p>
+                    <a href="dashboard.html">&larr; Kembali ke Dashboard</a> |
+                    <a href="component.html">Daftar Komponen</a>
+                </p>
+            </nav>
+            <h1>Detail Komponen Tersedia</h1>
+            <p><small>Informasi Spesifikasi, Ketersediaan, dan Riwayat Peminjaman Komponen Laboratorium</small></p>
+            <nav aria-label="Daftar tautan cepat komponen">
+                <p>
+                    Lompat ke komponen:
+                    <a href="#arduino-uno-r3">Arduino Uno R3</a> |
+                    <a href="#sensor-dht22">Sensor DHT22</a>
+                </p>
+            </nav>
+        </header>
+
+        <hr>
+
+        <article id="arduino-uno-r3">
+            <header>
+                <h2>Arduino Uno R3</h2>
+                <p><small>MCU-00182 · Mikrokontroler</small></p>
+                <p><strong>Status:</strong> TERSEDIA</p>
+            </header>
+
+            <section>
+                <h3>Tentang komponen ini</h3>
+                <figure>
+                    <img src="assets/images/arduino.png" alt="Papan mikrokontroler Arduino Uno R3 tampak atas">
+                    <figcaption>Papan mikrokontroler Arduino Uno R3</figcaption>
+                </figure>
+                <p>Papan mikrokontroler berbasis ATmega328P untuk pembuatan purwarupa rangkaian elektronika dan proyek
+                    IoT dasar. Mudah diprogram dan kompatibel dengan berbagai sensor dan aktuator.</p>
+                <ul>
+                    <li>MIKROKONTROLER</li>
+                    <li>ARDUINO</li>
+                    <li>ATMEGA328P</li>
+                </ul>
+                <p><strong>Lokasi:</strong> Lab Sistem Tertanam · Lemari A · Rak 01</p>
+            </section>
+
+            <section>
+                <h3>Spesifikasi</h3>
+                <table>
+                    <caption>Spesifikasi dan Kelengkapan Arduino Uno R3</caption>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Kategori</th>
+                            <td>Mikrokontroler</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Koneksi</th>
+                            <td>USB Tipe-B</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Termasuk</th>
+                            <td>Board Arduino Uno R3 · Kabel USB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h3>Riwayat peminjaman</h3>
+                <table>
+                    <caption>Riwayat Peminjaman Arduino Uno R3</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Peminjam</th>
+                            <th scope="col">Dipinjam</th>
+                            <th scope="col">Dikembalikan</th>
+                            <th scope="col">Kondisi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Akira Tomoe</th>
+                            <td><time datetime="2026-10-05">5 Okt 2026</time></td>
+                            <td>Sedang dipinjam (Jatuh tempo <time datetime="2026-10-12">12 Okt 2026</time>)</td>
+                            <td>Baik</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <aside aria-label="Ketersediaan Arduino Uno R3">
+                <h3>Ketersediaan</h3>
+                <ul>
+                    <li><strong>Stok:</strong> 12 unit</li>
+                    <li><strong>Kondisi:</strong> Baik</li>
+                    <li><strong>Status:</strong> TERSEDIA</li>
+                </ul>
+
+                <section>
+                    <h4>Pengajuan Peminjaman</h4>
+                    <p><strong>[TERSEDIA]</strong></p>
+                    <p>Komponen tersedia dalam inventaris lab dan siap diajukan untuk peminjaman praktikum.</p>
+                    <p><a href="peminjaman.html">Ajukan Peminjaman Sekarang</a></p>
+                </section>
+            </aside>
+
+            <nav aria-label="Navigasi tautan Arduino Uno R3">
+                <p>
+                    <a href="#search">&uarr; Kembali ke atas</a> |
+                    <a href="dashboard.html">&larr; Kembali ke Dashboard</a> |
+                    <a href="component.html">Daftar Komponen</a>
+                </p>
+            </nav>
+        </article>
+
+        <hr>
+
+        <article id="sensor-dht22">
+            <header>
+                <h2>Sensor DHT22 (Suhu &amp; Kelembaban)</h2>
+                <p><small>SNS-00324 · Sensor</small></p>
+                <p><strong>Status:</strong> TERSEDIA</p>
+            </header>
+
+            <section>
+                <h3>Tentang komponen ini</h3>
+                <figure>
+                    <img src="assets/images/dht22.png"
+                        alt="Modul sensor suhu dan kelembaban udara DHT22 beserta komponen resistor pendukung">
+                    <figcaption>Sensor DHT22 (Suhu &amp; Kelembaban)</figcaption>
+                </figure>
+                <p>Sensor digital untuk mengukur suhu dan kelembaban udara relatif dengan akurasi tinggi dan sinyal
+                    keluaran digital terkalibrasi. Cocok untuk proyek monitoring lingkungan dan stasiun cuaca IoT.</p>
+                <ul>
+                    <li>SENSOR</li>
+                    <li>SUHU</li>
+                    <li>KELEMBABAN</li>
+                </ul>
+                <p><strong>Lokasi:</strong> Lab Sistem Tertanam · Lemari C · Rak 02</p>
+            </section>
+
+            <section>
+                <h3>Spesifikasi</h3>
+                <table>
+                    <caption>Spesifikasi dan Kelengkapan Sensor DHT22</caption>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Kategori</th>
+                            <td>Sensor</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tipe Pengukuran</th>
+                            <td>Suhu &amp; Kelembaban Relatif</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Termasuk</th>
+                            <td>Modul Sensor DHT22 · Resistor Pull-up</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h3>Riwayat peminjaman</h3>
+                <table>
+                    <caption>Riwayat Peminjaman Sensor DHT22</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Peminjam</th>
+                            <th scope="col">Dipinjam</th>
+                            <th scope="col">Dikembalikan</th>
+                            <th scope="col">Kondisi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Akira Tomoe</th>
+                            <td><time datetime="2026-10-01">1 Okt 2026</time></td>
+                            <td>Sedang dipinjam (Jatuh tempo <time datetime="2026-10-08">8 Okt 2026</time>)</td>
+                            <td>Baik</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <aside aria-label="Ketersediaan Sensor DHT22">
+                <h3>Ketersediaan</h3>
+                <ul>
+                    <li><strong>Stok:</strong> 3 unit</li>
+                    <li><strong>Kondisi:</strong> Baik</li>
+                    <li><strong>Status:</strong> TERSEDIA</li>
+                </ul>
+
+                <section>
+                    <h4>Pengajuan Peminjaman</h4>
+                    <p><strong>[TERSEDIA]</strong></p>
+                    <p>Komponen tersedia dalam inventaris lab dan siap diajukan untuk peminjaman praktikum.</p>
+                    <p><a href="peminjaman.html">Ajukan Peminjaman Sekarang</a></p>
+                </section>
+            </aside>
+
+            <nav aria-label="Navigasi tautan Sensor DHT22">
+                <p>
+                    <a href="#search">&uarr; Kembali ke atas</a> |
+                    <a href="dashboard.html">&larr; Kembali ke Dashboard</a> |
+                    <a href="component.html">Daftar Komponen</a>
+                </p>
+            </nav>
+        </article>
+    </main>
+
+    <hr>
+
+    <footer>
+        <p><small>&copy; 2026 Campus IoT - Sistem Manajemen Komponen IoT Laboratorium Universitas.</small></p>
+    </footer>
+</body>
+
+</html>
