@@ -74,32 +74,59 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Nama komponen</th>
-                        <th>Kategori</th>
-                        <th>Stok</th>
-                        <th>Kondisi</th>
-                        <th>Status</th>
-                        <th>Aksi</th>
+                        <th scope="col">Nama komponen</th>
+                        <th scope="col">Kategori</th>
+                        <th scope="col">Stok</th>
+                        <th scope="col">Kondisi</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Aksi</th>
                     </tr>
                 </thead>
 
-                <tbody id="data-komponen"></tbody>
+                <tbody id="data-komponen">
+                    <tr>
+                        <th scope="row">Sensor DHT22 (Suhu &amp; Kelembaban)</th>
+                        <td>Sensor</td>
+                        <td>3</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="detail-component.html#sensor-dht22">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">ESP32 DevKit V1</th>
+                        <td>Mikrokontroler</td>
+                        <td>0</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[DIPINJAM]</strong></td>
+                        <td><a href="detail-component.html">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Relay Module 4 Channel</th>
+                        <td>Modul</td>
+                        <td>7</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="detail-component.html">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Arduino Uno R3</th>
+                        <td>Mikrokontroler</td>
+                        <td>12</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="detail-component.html#arduino-uno-r3">Lihat detail</a></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Kabel Jumper Male to Female</th>
+                        <td>Aksesoris</td>
+                        <td>10</td>
+                        <td>Berfungsi</td>
+                        <td><strong>[TERSEDIA]</strong></td>
+                        <td><a href="detail-component.html">Lihat detail</a></td>
+                    </tr>
+                </tbody>
             </table>
         </section>
     </main>
-
-    <dialog id="modal-detail">
-        <h2>Detail Komponen</h2>
-        <p>Informasi detail akan muncul di sini.</p>
-        <button type="button" onclick="document.getElementById('modal-detail').close()">Tutup Detail</button>
-    </dialog>
-
-    <script src="js/data-component.js"></script>
-
-    <script>
-        function lihatDetail(namaKomponen) {
-            document.getElementById('modal-detail').showModal();
-        }
-    </script>
 </body>
 </html>
