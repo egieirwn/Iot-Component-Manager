@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Pengembalian Komponen - Campus IoT</title>
+</head>
+<body>
+    <header>
+        <h1>Form Pengembalian Komponen</h1>
+    </header>
+    <main>
+        <section>
+            <h2>Informasi Peminjaman</h2>
+            <ul>
+                <li><strong>Nama Komponen:</strong> Arduino Uno R3</li>
+                <li><strong>Jumlah:</strong> 1 unit</li>
+                <li><strong>Tanggal Pinjam:</strong> 5 Okt 2026</li>
+                <li><strong>Jatuh Tempo:</strong> 12 Okt 2026</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Formulir Pengembalian</h2>
+            <form action="pengembalian-berhasil.html" method="get">
+                <fieldset>
+                    <legend>Kondisi Barang</legend>
+                    <p>
+                        <label for="kondisi">Kondisi Komponen:</label><br>
+                        <select id="kondisi" name="kondisi" required>
+                            <option value="baik">Baik / Berfungsi</option>
+                            <option value="rusak-ringan">Rusak Ringan</option>
+                            <option value="rusak-berat">Rusak Berat</option>
+                        </select>
+                    </p>
+                    <p>
+                        <label for="catatan">Catatan Tambahan (opsional):</label><br>
+                        <textarea id="catatan" name="catatan" rows="3"></textarea>
+                    </p>
+                    <p>
+                        <button type="submit">Konfirmasi Pengembalian</button>
+                    </p>
+                </fieldset>
+            </form>
+        </section>
+        <p><a href="../borrowing/peminjaman-saya.html">&larr; Batal dan Kembali</a></p>
+    </main>
+</body>
+</html>
