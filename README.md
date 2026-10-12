@@ -18,33 +18,33 @@ Berdasarkan alur sistem yang dirancang, aplikasi ini mencakup:
 Proyek ini menggunakan struktur folder berbasis fitur (*Feature-based Folder Structure*) agar kode mudah dikelola dan diskalakan:
 
 Iot-Component-Manager/
-├── index.html                 (Landing Page / Halaman Awal)
+├── index.html                        (Landing Page / Halaman Awal)
 ├── pages/
-│   ├── auth/                  (Alur Autentikasi)
+│   ├── auth/                         (Alur Autentikasi)
 │   │   ├── login.html
 │   │   ├── register.html
 │   │   ├── verify-email.html
 │   │   ├── forgot-password.html
 │   │   └── reset-email-sent.html
-│   ├── inventory/             (Alur Inventaris & Peminjaman)
+│   ├── inventory/                    (Alur Inventaris & Peminjaman)
 │   │   ├── dashboard.html
 │   │   ├── component.html
 │   │   └── detail-component.html
-│   ├── borrowing/             (Alur Transaksi Peminjaman)
+│   ├── borrowing/                    (Alur Transaksi Peminjaman)
 │   │   ├── form-peminjaman.html
 │   │   ├── konfirmasi-peminjaman.html
 │   │   ├── peminjaman-berhasil.html
-│   │   └── peminjaman-saya.html    (Riwayat / Peminjaman Saya)
-│   ├── return/                (Alur Pengembalian - Folder Baru)
+│   │   └── peminjaman-saya.html      (Riwayat / Peminjaman Saya)
+│   ├── return/                       (Alur Pengembalian - Folder Baru)
 │   │   ├── form-pengembalian.html      (Belum ada, nanti dibuat)
 │   │   └── pengembalian-berhasil.html  (Belum ada, nanti dibuat)
 │   └── profile/
 │       └── complete-profile.html
-├── assets/
-│   ├── css/                   (Folder Baru untuk CSS)
-│   ├── js/
-│   │   └── data-component.js
-│   └── images/
-│       ├── arduino.png
-│       ├── dht22.png
-│       └── esp32.png
+└── assets/
+    ├── css/                          (Folder Baru untuk CSS)
+    ├── js/
+    │   └── data-component.js
+    └── images/
+        ├── arduino.png
+        ├── dht22.png
+        └── esp32.png
