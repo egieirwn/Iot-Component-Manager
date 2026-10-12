@@ -4,7 +4,7 @@
 *   Egie Irawan (@Mars)
 *   Lintang Wahyu Aji Saputro (@Hyousetsuu)
 *   Gibrand Putra Pradana (@Gbrnd-ux)
-*   Nabil Dzaka Fahrizal Santoso
+*   Nabil Dzaka Fahrizal Santoso (nabilea)
 *   Aditya Herlambang 
 
 ## 📅 Log Prompt & Evaluasi
