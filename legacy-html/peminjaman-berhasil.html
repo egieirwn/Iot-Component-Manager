@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peminjaman Berhasil - Campus IoT</title>
+</head>
+
+<body>
+    <aside aria-label="Bilah samping">
+        <header>
+            <p><strong>Campus IoT</strong><br><small>Universitas</small></p>
+        </header>
+
+        <hr>
+
+        <nav aria-label="Navigasi utama">
+            <ul>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="component.html">Komponen</a></li>
+                <li><a href="peminjaman.html">Peminjaman Saya</a></li>
+            </ul>
+        </nav>
+
+        <hr>
+
+        <section aria-label="Bantuan">
+            <p>
+                <strong>Butuh bantuan?</strong><br>
+                <small>Hubungi administrator lab kampus.</small>
+            </p>
+        </section>
+    </aside>
+
+    <hr>
+
+    <header>
+        <form action="#" method="get">
+            <label for="search-global">Pencarian:</label>
+            <input type="search" id="search-global" name="q" placeholder="Cari komponen, ID, atau kategori...">
+            <button type="submit">Cari</button>
+        </form>
+
+        <section aria-label="Profil pengguna">
+            <span>[Ikon Notifikasi]</span> |
+            <strong>Akira Tomoe</strong>
+            <p><small>NIM 2210511045 · Teknik Informatika</small></p>
+        </section>
+    </header>
+
+    <hr>
+
+    <main>
+        <header>
+            <nav aria-label="Navigasi rekam jejak">
+                <p>
+                    <a href="dashboard.html">&larr; Dashboard</a> /
+                    <a href="component.html">Komponen</a> /
+                    <a href="detail-component.html#arduino-uno-r3">Detail Komponen</a> /
+                    Peminjaman Berhasil
+                </p>
+            </nav>
+            <h1>Peminjaman Berhasil</h1>
+            <p>Permohonan peminjaman komponen telah berhasil dikonfirmasi dan diselesaikan dalam alur demonstrasi inventaris laboratorium.</p>
+        </header>
+
+        <section aria-labelledby="heading-status-peminjaman">
+            <h2 id="heading-status-peminjaman">Status Peminjaman</h2>
+            <p>
+                <strong>Status Komponen:</strong> <strong>DIPINJAM</strong>
+            </p>
+            <p>Komponen telah siap untuk diambil di laboratorium sistem tertanam sesuai jadwal yang telah ditentukan.</p>
+        </section>
+
+        <section aria-labelledby="heading-ringkasan-konfirmasi">
+            <h2 id="heading-ringkasan-konfirmasi">Ringkasan Peminjaman Aktif</h2>
+            <table>
+                <caption>Ringkasan Data Komponen yang Berhasil Dipinjam</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Parameter</th>
+                        <th scope="col">Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">Komponen</th>
+                        <td>Arduino Uno R3 (MCU-00182)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Kategori</th>
+                        <td>Mikrokontroler</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Jumlah Dipinjam</th>
+                        <td>2 unit</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Status</th>
+                        <td><strong>DIPINJAM</strong></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Peminjam</th>
+                        <td>Akira Tomoe (NIM: 2210511045)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Mata Kuliah / Proyek</th>
+                        <td>Praktikum Sistem Tertanam &amp; IoT</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Rencana Pengembalian</th>
+                        <td><time datetime="2026-10-24">24 Okt 2026</time></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Lokasi Pengambilan</th>
+                        <td>Lab Sistem Tertanam · Lemari A · Rak 01</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section aria-labelledby="heading-langkah-berikutnya">
+            <h2 id="heading-langkah-berikutnya">Langkah Berikutnya</h2>
+            <p>Silakan tunjukkan bukti konfirmasi ini kepada laboran saat mengambil perangkat. Harap kembalikan komponen tepat waktu sesuai tanggal rencana pengembalian.</p>
+            <nav aria-label="Aksi setelah peminjaman">
+                <ul>
+                    <li><a href="peminjaman.html">Lihat Daftar Peminjaman</a></li>
+                    <li><a href="dashboard.html">Kembali ke Dashboard</a></li>
+                    <li><a href="detail-component.html#arduino-uno-r3">Kembali ke Detail Komponen</a></li>
+                </ul>
+            </nav>
+            <p><small>Catatan demonstrasi: Alur ini merupakan demonstrasi antarmuka statis. Data transaksi tidak tersimpan secara permanen pada basis data riil dan stok inventaris fisik tidak berubah secara otomatis.</small></p>
+        </section>
+    </main>
+
+    <hr>
+
+    <footer>
+        <p><small>&copy; 2026 Campus IoT - Sistem Manajemen Komponen IoT Laboratorium Universitas.</small></p>
+    </footer>
+</body>
+
+</html>

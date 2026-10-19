@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buat Akun - Campus IoT Universitas</title>
+</head>
+<body>
+    <header>
+        <p>
+            <strong>U</strong>
+            <strong>Campus IoT - Universitas</strong>
+            Inventaris Laboratorium
+        </p>
+    </header>
+
+    <main>
+        <h1>Buat akun Anda</h1>
+
+        <p>Gunakan alamat email kampus (@un.ac.id).</p>
+
+        <form action="verify-email.html" method="get">
+            <fieldset>
+                <legend>Informasi akun</legend>
+
+                <p>
+                    <label for="email">Email kampus</label><br>
+                    <input
+                        id="email"
+                        type="email"
+                        autocomplete="email"
+                        pattern=".+@un\.ac\.id"
+                        title="Gunakan email kampus yang berakhiran @un.ac.id."
+                        required
+                    >
+                </p>
+
+                <p>
+                    <label for="password">Kata sandi</label><br>
+                    <input
+                        id="password"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                        aria-describedby="password-requirements"
+                        title="Gunakan minimal 8 karakter, satu angka, dan satu simbol."
+                        required
+                    >
+                </p>
+
+                <p id="password-requirements">
+                    Kata sandi minimal 8 karakter, terdiri dari setidaknya
+                    satu angka dan satu simbol.
+                </p>
+
+                <p>
+                    <label for="confirm-password">
+                        Konfirmasi kata sandi
+                    </label><br>
+                    <input
+                        id="confirm-password"
+                        type="password"
+                        autocomplete="new-password"
+                        required
+                    >
+                </p>
+            </fieldset>
+
+            <p>
+                <button type="submit">Daftar</button>
+            </p>
+        </form>
+        <p>
+            Sudah punya akun?
+            <a href="login.html">Masuk</a>
+        </p>
+    </main>
+</body>
+</html>
