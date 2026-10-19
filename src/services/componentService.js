@@ -41,11 +41,28 @@ export const saveStoredBorrowings = (borrowings) => {
   }
 };
 
+// Hanya data profil yang aman, tanpa password atau token
 export const getStoredUser = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.USER);
-    return data ? JSON.parse(data) : currentUser;
+    if (data) {
+      const parsed = JSON.parse(data);
+      // Sanitasi: pastikan tidak ada password atau token
+      const { password, token, ...safeUser } = parsed;
+      return safeUser;
+    }
+    return currentUser;
   } catch {
     return currentUser;
+  }
+};
+
+export const resetToDefaultData = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.COMPONENTS);
+    localStorage.removeItem(STORAGE_KEYS.BORROWINGS);
+    localStorage.removeItem(STORAGE_KEYS.USER);
+  } catch (err) {
+    console.error('Failed to reset localStorage data', err);
   }
 };

@@ -6,7 +6,6 @@ export const currentUser = {
   major: 'Teknik Informatika',
   university: 'Universitas',
   role: 'Mahasiswa',
-  phone: '081234567890',
   mainLab: 'Lab Sistem Tertanam'
 };
 
@@ -17,6 +16,8 @@ export const initialComponents = [
     name: 'Arduino Uno R3',
     category: 'Mikrokontroler',
     stock: 12,
+    maintenanceStock: 0,
+    damagedStock: 0,
     totalStock: 14,
     condition: 'Baik',
     status: 'TERSEDIA',
@@ -39,6 +40,8 @@ export const initialComponents = [
     name: 'Sensor DHT22 (Suhu & Kelembaban)',
     category: 'Sensor',
     stock: 3,
+    maintenanceStock: 0,
+    damagedStock: 0,
     totalStock: 4,
     condition: 'Baik',
     status: 'TERSEDIA',
@@ -61,6 +64,8 @@ export const initialComponents = [
     name: 'ESP32 DevKit V1',
     category: 'Mikrokontroler',
     stock: 0,
+    maintenanceStock: 0,
+    damagedStock: 0,
     totalStock: 2,
     condition: 'Baik',
     status: 'DIPINJAM',
@@ -89,6 +94,8 @@ export const initialComponents = [
     name: 'Relay Module 4 Channel',
     category: 'Modul',
     stock: 7,
+    maintenanceStock: 0,
+    damagedStock: 0,
     totalStock: 8,
     condition: 'Baik',
     status: 'TERSEDIA',
@@ -109,6 +116,8 @@ export const initialComponents = [
     name: 'Kabel Jumper Male to Female',
     category: 'Aksesoris',
     stock: 10,
+    maintenanceStock: 0,
+    damagedStock: 0,
     totalStock: 15,
     condition: 'Baik',
     status: 'TERSEDIA',
@@ -139,7 +148,9 @@ export const initialBorrowings = [
     remainingDays: '3 hari tersisa',
     pickupLab: 'Lab Sistem Tertanam',
     purpose: 'Monitoring lingkungan dan kelembaban ruang lab',
-    notes: 'Kondisi sensor baik teruji'
+    notes: 'Kondisi sensor baik teruji',
+    borrowerName: 'Akira Tomoe',
+    borrowerNim: '2210511045'
   },
   {
     id: 'BORROW-002',
@@ -154,6 +165,27 @@ export const initialBorrowings = [
     remainingDays: '7 hari tersisa',
     pickupLab: 'Lab Sistem Tertanam',
     purpose: 'Praktikum Sistem Tertanam & IoT',
-    notes: 'Dilengkapi kabel USB Tipe-B'
+    notes: 'Dilengkapi kabel USB Tipe-B',
+    borrowerName: 'Akira Tomoe',
+    borrowerNim: '2210511045'
+  },
+  {
+    id: 'BORROW-000',
+    componentId: 'esp32-devkit-v1',
+    componentName: 'ESP32 DevKit V1',
+    componentCode: 'MCU-00214',
+    category: 'Mikrokontroler',
+    quantity: 1,
+    status: 'DIKEMBALIKAN',
+    borrowDate: '2026-08-12',
+    dueDate: '2026-08-19',
+    returnDate: '2026-08-19',
+    returnCondition: 'Baik',
+    remainingDays: 'Selesai',
+    pickupLab: 'Laboratorium Inovasi',
+    purpose: 'Uji coba komunikasi BLE',
+    notes: 'Komponen kembali lengkap dan berfungsi',
+    borrowerName: 'Rifky Pembohonk Publik',
+    borrowerNim: '2210511002'
   }
 ];

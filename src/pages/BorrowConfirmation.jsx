@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   getStoredComponents,
   getStoredBorrowings,
-  getStoredUser,
   saveStoredBorrowings,
   saveStoredComponents
 } from '../services/componentService';
@@ -13,9 +12,9 @@ export default function BorrowConfirmation() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { component, borrowData } = location.state || {};
-  const user = getStoredUser();
 
   if (!component || !borrowData) {
     return (
@@ -31,8 +30,24 @@ export default function BorrowConfirmation() {
   }
 
   const handleConfirm = () => {
-    // 1. Decrement component stock in storage
+    setErrorMsg('');
     const allComponents = getStoredComponents();
+    const liveComp = allComponents.find((c) => c.id === component.id);
+
+    // Double-check real-time stock validation
+    if (!liveComp) {
+      setErrorMsg('Komponen tidak ditemukan dalam inventaris.');
+      return;
+    }
+
+    if (liveComp.stock < borrowData.quantity) {
+      setErrorMsg(
+        `Gagal memproses: Stok ${liveComp.name} saat ini hanya tersisa ${liveComp.stock} unit (Permintaan: ${borrowData.quantity} unit).`
+      );
+      return;
+    }
+
+    // 1. Decrement component stock in storage
     const updatedComponents = allComponents.map((c) => {
       if (c.id === component.id) {
         const remainingStock = Math.max(0, c.stock - borrowData.quantity);
@@ -61,7 +76,10 @@ export default function BorrowConfirmation() {
       remainingDays: 'Aktif',
       pickupLab: component.location.split('·')[0].trim(),
       purpose: borrowData.purpose,
-      notes: borrowData.notes || 'Permohonan berhasil diverifikasi'
+      notes: borrowData.notes || 'Permohonan berhasil diverifikasi',
+      borrowerName: borrowData.borrowerName,
+      borrowerNim: borrowData.borrowerNim,
+      borrowerEmail: borrowData.borrowerEmail
     };
 
     saveStoredBorrowings([newBorrowing, ...allBorrowings]);
@@ -92,7 +110,9 @@ export default function BorrowConfirmation() {
           Peminjaman Berhasil!
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: '2rem' }}>
-          Permohonan peminjaman <strong>{borrowData.quantity} unit {component.name}</strong> telah berhasil dicatat. Stok inventaris telah otomatis diperbarui. Silakan ambil perangkat di <strong>{component.location.split('·')[0].trim()}</strong>.
+          Permohonan peminjaman <strong>{borrowData.quantity} unit {component.name}</strong> atas nama{' '}
+          <strong>{borrowData.borrowerName}</strong> telah berhasil dicatat. Stok inventaris telah otomatis terpotong. Silakan ambil perangkat di{' '}
+          <strong>{component.location.split('·')[0].trim()}</strong>.
         </p>
 
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -129,6 +149,26 @@ export default function BorrowConfirmation() {
         <p>Silakan tinjau kembali rincian peminjaman di bawah ini sebelum melanjutkan.</p>
       </div>
 
+      {errorMsg && (
+        <div
+          style={{
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA',
+            color: '#B91C1C',
+            padding: '1rem',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            fontSize: '0.875rem'
+          }}
+        >
+          <AlertTriangle size={20} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: '2rem' }}>
         <table className="custom-table" style={{ margin: 0 }}>
           <thead>
@@ -152,7 +192,11 @@ export default function BorrowConfirmation() {
             </tr>
             <tr>
               <td><strong>Nama Peminjam</strong></td>
-              <td>{user.name} (NIM: {user.nim})</td>
+              <td>
+                {borrowData.borrowerName} (NIM: {borrowData.borrowerNim})
+                <br />
+                <small style={{ color: 'var(--color-text-muted)' }}>{borrowData.borrowerEmail}</small>
+              </td>
             </tr>
             <tr>
               <td><strong>Mata Kuliah / Proyek</strong></td>
