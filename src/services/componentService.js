@@ -66,3 +66,45 @@ export const resetToDefaultData = () => {
     console.error('Failed to reset localStorage data', err);
   }
 };
+
+// Fungsi pencatat peminjaman lengkap (mencegah kolom kosong pada tabel riwayat)
+export const addLoanRecord = (newLoanData) => {
+  try {
+    const currentBorrowings = getStoredBorrowings();
+    
+    // Hitung tanggal jatuh tempo (borrowDate + durationDays)
+    const startDate = new Date(newLoanData.borrowDate || Date.now());
+    const duration = Number(newLoanData.durationDays) || 3;
+    const dueDateObj = new Date(startDate);
+    dueDateObj.setDate(dueDateObj.getDate() + duration);
+    
+    const dueDateStr = dueDateObj.toISOString().split('T')[0];
+
+    const newBorrowing = {
+      id: `BRW-${Date.now()}`,
+      componentId: newLoanData.componentId,
+      componentName: newLoanData.componentName,
+      componentCode: newLoanData.componentCode || 'IOT-DEV',
+      borrowerName: newLoanData.borrowerName,
+      nim: newLoanData.nim,
+      borrowDate: newLoanData.borrowDate,
+      durationDays: duration,
+      dueDate: dueDateStr,
+      remainingDays: `${duration} hari tersisa`,
+      quantity: 1, // Default 1 unit per peminjaman
+      purpose: newLoanData.notes || 'Praktikum IoT',
+      pickupLab: 'Lab Sistem Tertanam', // Default nama lab
+      notes: newLoanData.notes || '',
+      status: 'DIPINJAM',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedBorrowings = [newBorrowing, ...currentBorrowings];
+    saveStoredBorrowings(updatedBorrowings);
+    
+    return newBorrowing;
+  } catch (err) {
+    console.error('Gagal menambahkan data peminjaman:', err);
+    return null;
+  }
+};

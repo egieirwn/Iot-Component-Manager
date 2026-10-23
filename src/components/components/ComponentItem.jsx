@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge';
 
-export default function ComponentItem({ component }) {
+export default function ComponentItem({ component, onBorrow }) {
   const isAvailable = component.status?.toUpperCase() === 'TERSEDIA';
 
   return (
@@ -16,10 +16,21 @@ export default function ComponentItem({ component }) {
         </h3>
         <p className="category">{component.category}</p>
 
-        <div className="component-card-footer">
+        <div className="component-card-footer" style={{ marginBottom: '0.75rem' }}>
           <span className="stock-text">Stok {component.stock} unit</span>
           <StatusBadge status={component.status} />
         </div>
+
+        {/* Tombol Aksi Peminjaman (Target 2) */}
+        <button
+          type="button"
+          className={isAvailable ? "btn-primary" : "btn-outline"}
+          disabled={!isAvailable}
+          onClick={onBorrow}
+          style={{ width: '100%', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+        >
+          {isAvailable ? 'Pinjam Komponen' : 'Sedang Dipinjam'}
+        </button>
       </div>
     </article>
   );

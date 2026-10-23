@@ -57,22 +57,24 @@ export default function Borrowings() {
     setBorrowings(updatedBorrowings);
     saveStoredBorrowings(updatedBorrowings);
 
-    // 2. Perbarui stok komponen berdasarkan kondisi pengembalian
-    const updatedComponents = components.map((c) => {
+   const updatedComponents = components.map((c) => {
       if (c.id === selectedBorrowing.componentId) {
         let newStock = c.stock;
         let newMaintenance = c.maintenanceStock || 0;
         let newDamaged = c.damagedStock || 0;
 
+        // Ambil jumlah barang (default 1 jika quantity tidak terdefinisi)
+        const qty = selectedBorrowing.quantity || 1;
+
         if (returnCondition === 'Baik') {
           // Hanya jika kondisi Baik, stok siap pakai bertambah
-          newStock += selectedBorrowing.quantity;
+          newStock += qty;
         } else if (returnCondition === 'Perlu Pengecekan') {
           // Masuk ke stok perlu pengecekan
-          newMaintenance += selectedBorrowing.quantity;
+          newMaintenance += qty;
         } else if (returnCondition === 'Rusak') {
           // Masuk ke stok rusak
-          newDamaged += selectedBorrowing.quantity;
+          newDamaged += qty;
         }
 
         return {

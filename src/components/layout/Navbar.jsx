@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell } from 'lucide-react';
 import { currentUser } from '../../data/mockData';
 
-export default function Navbar({ onSearch, searchTerm = '' }) {
+export default function Navbar({ onSearch, onSearchSubmit, searchTerm = '' }) {
+  const [inputValue, setInputValue] = useState(searchTerm);
+
+  useEffect(() => {
+    setInputValue(searchTerm);
+  }, [searchTerm]);
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && onSearchSubmit) {
+      onSearchSubmit(inputValue);
+    }
+  };
+
   return (
     <header className="topbar">
       <div className="topbar-search">
@@ -10,8 +30,9 @@ export default function Navbar({ onSearch, searchTerm = '' }) {
         <input
           type="search"
           placeholder="Cari komponen, ID, atau kategori..."
-          value={searchTerm}
-          onChange={(e) => onSearch && onSearch(e.target.value)}
+          value={inputValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
           aria-label="Cari komponen"
         />
       </div>
@@ -23,14 +44,16 @@ export default function Navbar({ onSearch, searchTerm = '' }) {
 
         <div className="user-profile">
           <div className="user-avatar" aria-hidden="true">
-            {currentUser.name
-              .split(' ')
-              .map((n) => n[0])
-              .join('')}
+            {currentUser?.name
+              ? currentUser.name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')
+              : 'U'}
           </div>
           <div className="user-meta">
-            <h4>{currentUser.name}</h4>
-            <p>NIM {currentUser.nim} · {currentUser.major}</p>
+            <h4>{currentUser?.name || 'User'}</h4>
+            <p>NIM {currentUser?.nim || '-'} · {currentUser?.major || '-'}</p>
           </div>
         </div>
       </div>
