@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, AlertTriangle } from 'lucide-react';
-import {
-  getStoredComponents,
-  getStoredBorrowings,
-  saveStoredBorrowings,
-  saveStoredComponents
-} from '../services/componentService';
+import { useToast } from '../components/common/Toast';
+import { processBorrowing } from '../services/componentService';
 
 export default function BorrowConfirmation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const { component, borrowData } = location.state || {};
@@ -29,61 +27,35 @@ export default function BorrowConfirmation() {
     );
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setErrorMsg('');
-    const allComponents = getStoredComponents();
-    const liveComp = allComponents.find((c) => c.id === component.id);
+    setIsSubmitting(true);
 
-    // Double-check real-time stock validation
-    if (!liveComp) {
-      setErrorMsg('Komponen tidak ditemukan dalam inventaris.');
-      return;
-    }
+    try {
+      const result = await processBorrowing({
+        componentId: component.id,
+        componentName: component.name,
+        componentCode: component.code,
+        quantity: borrowData.quantity,
+        borrowerName: borrowData.borrowerName,
+        nim: borrowData.borrowerNim,
+        borrowerEmail: borrowData.borrowerEmail,
+        borrowDate: new Date().toISOString().split('T')[0],
+        returnDate: borrowData.returnDate,
+        notes: borrowData.notes,
+        purpose: borrowData.purpose
+      });
 
-    if (liveComp.stock < borrowData.quantity) {
-      setErrorMsg(
-        `Gagal memproses: Stok ${liveComp.name} saat ini hanya tersisa ${liveComp.stock} unit (Permintaan: ${borrowData.quantity} unit).`
-      );
-      return;
-    }
-
-    // 1. Decrement component stock in storage
-    const updatedComponents = allComponents.map((c) => {
-      if (c.id === component.id) {
-        const remainingStock = Math.max(0, c.stock - borrowData.quantity);
-        return {
-          ...c,
-          stock: remainingStock,
-          status: remainingStock === 0 ? 'DIPINJAM' : 'TERSEDIA'
-        };
+      if (result.success) {
+        toast.success(`Peminjaman ${borrowData.quantity} unit ${component.name} berhasil disetujui!`);
+        setIsSuccess(true);
       }
-      return c;
-    });
-    saveStoredComponents(updatedComponents);
-
-    // 2. Add new transaction to borrowings
-    const allBorrowings = getStoredBorrowings();
-    const newBorrowing = {
-      id: `BORROW-${Date.now().toString().slice(-4)}`,
-      componentId: component.id,
-      componentName: component.name,
-      componentCode: component.code,
-      category: component.category,
-      quantity: borrowData.quantity,
-      status: 'DIPINJAM',
-      borrowDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      dueDate: borrowData.returnDate,
-      remainingDays: 'Aktif',
-      pickupLab: component.location.split('·')[0].trim(),
-      purpose: borrowData.purpose,
-      notes: borrowData.notes || 'Permohonan berhasil diverifikasi',
-      borrowerName: borrowData.borrowerName,
-      borrowerNim: borrowData.borrowerNim,
-      borrowerEmail: borrowData.borrowerEmail
-    };
-
-    saveStoredBorrowings([newBorrowing, ...allBorrowings]);
-    setIsSuccess(true);
+    } catch (err) {
+      setErrorMsg(err.message || 'Gagal memproses permohonan peminjaman.');
+      toast.error(err.message || 'Gagal memproses peminjaman.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -226,8 +198,19 @@ export default function BorrowConfirmation() {
         <Link to={`/borrow/${component.id}`} className="btn-outline">
           Kembali ke Form
         </Link>
-        <button type="button" className="btn-primary" onClick={handleConfirm}>
-          Konfirmasi Peminjaman
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={handleConfirm}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="spinner" style={{ marginRight: '0.5rem' }} /> Memproses...
+            </>
+          ) : (
+            'Konfirmasi Peminjaman'
+          )}
         </button>
       </div>
     </div>

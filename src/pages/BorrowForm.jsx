@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, User, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, User, AlertCircle } from 'lucide-react';
 import { getStoredComponents, getStoredUser } from '../services/componentService';
 
 export default function BorrowForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [component, setComponent] = useState(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const user = getStoredUser();
 
   const [formData, setFormData] = useState({
@@ -31,52 +32,92 @@ export default function BorrowForm() {
 
   if (!component) return null;
 
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    const qtyNum = parseInt(formData.quantity, 10);
+    const trimmedProject = formData.projectName.trim();
+    const trimmedPurpose = formData.purpose.trim();
+
+    // 1. Validasi kuantitas
+    if (isNaN(qtyNum) || qtyNum < 1) {
+      newErrors.quantity = 'Jumlah pinjam harus berupa angka minimal 1 unit.';
+    } else if (qtyNum > component.stock) {
+      newErrors.quantity = `Jumlah pinjam (${qtyNum} unit) melebihi sisa stok (${component.stock} unit).`;
+    }
+
+    // 2. Validasi nama proyek
+    if (!trimmedProject) {
+      newErrors.projectName = 'Nama proyek atau mata kuliah praktikum wajib diisi.';
+    } else if (trimmedProject.length < 3) {
+      newErrors.projectName = 'Nama proyek minimal 3 karakter.';
+    }
+
+    // 3. Validasi tujuan peminjaman
+    if (!trimmedPurpose) {
+      newErrors.purpose = 'Tujuan peminjaman / deskripsi proyek wajib diisi.';
+    } else if (trimmedPurpose.length < 5) {
+      newErrors.purpose = 'Tujuan peminjaman minimal 5 karakter agar diverifikasi laboran.';
+    }
+
+    // 4. Validasi tanggal pengembalian
+    if (!formData.returnDate) {
+      newErrors.returnDate = 'Tanggal rencana pengembalian wajib ditentukan.';
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      if (formData.returnDate < today) {
+        newErrors.returnDate = 'Tanggal pengembalian tidak boleh sebelum hari ini.';
+      }
+    }
+
+    // 5. Validasi persetujuan tata tertib
+    if (!formData.agreeTerms) {
+      newErrors.agreeTerms = 'Anda wajib menyetujui pernyataan tata tertib laboratorium.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    setErrorMsg('');
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
 
     const qty = parseInt(formData.quantity, 10);
 
-    // Validasi kuantitas
-    if (isNaN(qty) || qty < 1) {
-      setErrorMsg('Jumlah pinjam harus berupa angka minimal 1 unit.');
-      return;
-    }
-
-    if (qty > component.stock) {
-      setErrorMsg(`Jumlah pinjam (${qty} unit) melebihi stok tersedia (${component.stock} unit).`);
-      return;
-    }
-
-    if (!formData.purpose.trim()) {
-      setErrorMsg('Tujuan peminjaman / deskripsi proyek wajib diisi.');
-      return;
-    }
-
-    if (!formData.returnDate) {
-      setErrorMsg('Tanggal rencana pengembalian wajib ditentukan.');
-      return;
-    }
-
-    if (!formData.agreeTerms) {
-      setErrorMsg('Anda wajib menyetujui pernyataan tata tertib laboratorium.');
-      return;
-    }
-
-    // Teruskan data beserta profil peminjam ke halaman konfirmasi
-    navigate('/borrow-confirmation', {
-      state: {
-        component,
-        borrowData: {
-          ...formData,
-          quantity: qty,
-          borrowerName: user.name,
-          borrowerNim: user.nim,
-          borrowerEmail: user.email,
-          borrowerMajor: user.major
+    setTimeout(() => {
+      // Teruskan data tersanitasi ke halaman konfirmasi
+      navigate('/borrow-confirmation', {
+        state: {
+          component,
+          borrowData: {
+            quantity: qty,
+            projectName: formData.projectName.trim(),
+            purpose: formData.purpose.trim(),
+            returnDate: formData.returnDate,
+            notes: formData.notes.trim(),
+            borrowerName: user.name,
+            borrowerNim: user.nim,
+            borrowerEmail: user.email,
+            borrowerMajor: user.major
+          }
         }
-      }
-    });
+      });
+      setIsSubmitting(false);
+    }, 200);
   };
 
   return (
@@ -156,36 +197,13 @@ export default function BorrowForm() {
         </div>
       </div>
 
-      {/* Error Alert if any */}
-      {errorMsg && (
-        <div
-          style={{
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FECACA',
-            color: '#B91C1C',
-            padding: '1rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            fontSize: '0.875rem'
-          }}
-        >
-          <ShieldAlert size={20} />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
       {/* Form Card */}
       <div className="card">
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div>
-            <label
-              htmlFor="quantity"
-              style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}
-            >
-              Jumlah Pinjam (unit):
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Jumlah Pinjam */}
+          <div className="form-group">
+            <label htmlFor="quantity" className="form-label">
+              Jumlah Pinjam (unit) *
             </label>
             <input
               id="quantity"
@@ -194,27 +212,24 @@ export default function BorrowForm() {
               min="1"
               max={component.stock}
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                outline: 'none'
-              }}
+              onChange={handleChange}
+              className={`form-input ${errors.quantity ? 'has-error' : ''}`}
             />
-            <small style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', display: 'block' }}>
-              Maksimal {component.stock} unit sesuai sisa stok inventaris.
-            </small>
+            {errors.quantity ? (
+              <span className="error-text">
+                <AlertCircle size={14} /> {errors.quantity}
+              </span>
+            ) : (
+              <small style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', display: 'block', fontSize: '0.75rem' }}>
+                Maksimal {component.stock} unit sesuai sisa inventaris.
+              </small>
+            )}
           </div>
 
-          <div>
-            <label
-              htmlFor="projectName"
-              style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}
-            >
-              Nama Proyek / Mata Kuliah Praktikum:
+          {/* Nama Proyek */}
+          <div className="form-group">
+            <label htmlFor="projectName" className="form-label">
+              Nama Proyek / Mata Kuliah Praktikum *
             </label>
             <input
               id="projectName"
@@ -222,111 +237,113 @@ export default function BorrowForm() {
               type="text"
               placeholder="Contoh: Praktikum Sistem Tertanam & IoT"
               value={formData.projectName}
-              onChange={(e) => setFormData({ ...formData, projectName: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                outline: 'none'
-              }}
+              onChange={handleChange}
+              className={`form-input ${errors.projectName ? 'has-error' : ''}`}
             />
+            {errors.projectName && (
+              <span className="error-text">
+                <AlertCircle size={14} /> {errors.projectName}
+              </span>
+            )}
           </div>
 
-          <div>
-            <label
-              htmlFor="purpose"
-              style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}
-            >
-              Tujuan Peminjaman / Deskripsi Proyek:
+          {/* Tujuan Penggunaan */}
+          <div className="form-group">
+            <label htmlFor="purpose" className="form-label">
+              Tujuan Peminjaman / Deskripsi Proyek *
             </label>
             <textarea
               id="purpose"
               name="purpose"
-              rows="4"
+              rows="3"
               placeholder="Jelaskan kebutuhan pengujian atau perangkat keras yang akan dibangun..."
               value={formData.purpose}
-              onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                outline: 'none'
-              }}
+              onChange={handleChange}
+              className={`form-input ${errors.purpose ? 'has-error' : ''}`}
+              style={{ resize: 'vertical' }}
             />
+            {errors.purpose && (
+              <span className="error-text">
+                <AlertCircle size={14} /> {errors.purpose}
+              </span>
+            )}
           </div>
 
-          <div>
-            <label
-              htmlFor="returnDate"
-              style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}
-            >
-              Tanggal Rencana Pengembalian:
+          {/* Tanggal Rencana Pengembalian */}
+          <div className="form-group">
+            <label htmlFor="returnDate" className="form-label">
+              Tanggal Rencana Pengembalian *
             </label>
             <input
               id="returnDate"
               name="returnDate"
               type="date"
               value={formData.returnDate}
-              onChange={(e) => setFormData({ ...formData, returnDate: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                outline: 'none'
-              }}
+              onChange={handleChange}
+              className={`form-input ${errors.returnDate ? 'has-error' : ''}`}
             />
+            {errors.returnDate && (
+              <span className="error-text">
+                <AlertCircle size={14} /> {errors.returnDate}
+              </span>
+            )}
           </div>
 
-          <div>
-            <label
-              htmlFor="notes"
-              style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}
-            >
-              Catatan Tambahan (opsional):
+          {/* Catatan Tambahan */}
+          <div className="form-group">
+            <label htmlFor="notes" className="form-label">
+              Catatan Tambahan (opsional)
             </label>
             <textarea
               id="notes"
               name="notes"
-              rows="3"
+              rows="2"
               placeholder="Catatan kelengkapan kabel, pin header, atau modul pendukung..."
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '0.625rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                outline: 'none'
-              }}
+              onChange={handleChange}
+              className="form-input"
+              style={{ resize: 'vertical' }}
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', paddingTop: '0.5rem' }}>
-            <input
-              type="checkbox"
-              id="agreeTerms"
-              name="agreeTerms"
-              checked={formData.agreeTerms}
-              onChange={(e) => setFormData({ ...formData, agreeTerms: e.target.checked })}
-              required
-              style={{ marginTop: '0.25rem' }}
-            />
-            <label
-              htmlFor="agreeTerms"
-              style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-            >
-              Saya menyatakan bertanggung jawab penuh atas pemeliharaan dan pengembalian komponen ini sesuai dengan tata tertib laboratorium.
-            </label>
+          {/* Persetujuan Tata Tertib */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', paddingTop: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="agreeTerms"
+                name="agreeTerms"
+                checked={formData.agreeTerms}
+                onChange={handleChange}
+                style={{ marginTop: '0.25rem', cursor: 'pointer' }}
+              />
+              <label
+                htmlFor="agreeTerms"
+                style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+              >
+                Saya menyatakan bertanggung jawab penuh atas pemeliharaan dan pengembalian komponen ini sesuai dengan tata tertib laboratorium.
+              </label>
+            </div>
+            {errors.agreeTerms && (
+              <span className="error-text" style={{ marginTop: '0.375rem' }}>
+                <AlertCircle size={14} /> {errors.agreeTerms}
+              </span>
+            )}
           </div>
 
-          <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%' }}>
-            Lanjut ke Konfirmasi
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ marginTop: '1rem', width: '100%' }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="spinner" style={{ marginRight: '0.5rem' }} /> Memvalidasi...
+              </>
+            ) : (
+              'Lanjut ke Konfirmasi'
+            )}
           </button>
         </form>
       </div>

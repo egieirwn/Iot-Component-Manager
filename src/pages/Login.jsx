@@ -1,14 +1,46 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
+import { useToast } from '../components/common/Toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [email, setEmail] = useState('akira.tomoe@un.ac.id');
   const [password, setPassword] = useState('password123');
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = () => {
+    const newErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      newErrors.email = 'Email kampus wajib diisi.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      newErrors.email = 'Format email tidak valid (contoh: nama@un.ac.id).';
+    }
+
+    if (!password) {
+      newErrors.password = 'Kata sandi wajib diisi.';
+    } else if (password.length < 6) {
+      newErrors.password = 'Kata sandi minimal 6 karakter.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    if (!validate()) return;
+
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      toast.success('Selamat datang kembali! Berhasil masuk ke inventaris.');
+      navigate('/dashboard');
+    }, 400);
   };
 
   return (
@@ -61,43 +93,49 @@ export default function Login() {
             Gunakan akun kampus Universitas untuk mengakses komponen IoT.
           </p>
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Email kampus
+          <form onSubmit={handleLogin} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="form-group">
+              <label htmlFor="login-email" className="form-label">
+                Email kampus *
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.625rem 0.875rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)',
-                  outline: 'none'
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
                 }}
+                className={`form-input ${errors.email ? 'has-error' : ''}`}
+                disabled={isSubmitting}
               />
+              {errors.email && (
+                <span className="error-text">
+                  <AlertCircle size={14} /> {errors.email}
+                </span>
+              )}
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Kata sandi
+            <div className="form-group">
+              <label htmlFor="login-password" className="form-label">
+                Kata sandi *
               </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.625rem 0.875rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)',
-                  outline: 'none'
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
                 }}
+                className={`form-input ${errors.password ? 'has-error' : ''}`}
+                disabled={isSubmitting}
               />
+              {errors.password && (
+                <span className="error-text">
+                  <AlertCircle size={14} /> {errors.password}
+                </span>
+              )}
               <div style={{ textAlign: 'right', marginTop: '0.375rem' }}>
                 <Link to="/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--color-primary)' }}>
                   Lupa kata sandi?
@@ -105,8 +143,19 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '0.75rem' }}>
-              Masuk
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ width: '100%', padding: '0.75rem' }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner" style={{ marginRight: '0.5rem' }} /> Memvalidasi...
+                </>
+              ) : (
+                'Masuk'
+              )}
             </button>
           </form>
 

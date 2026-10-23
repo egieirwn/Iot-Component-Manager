@@ -2,26 +2,55 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Bell, CheckCircle, AlertCircle } from 'lucide-react';
 import StatusBadge from '../components/components/StatusBadge';
-import { getStoredComponents } from '../services/componentService';
+import { useToast } from '../components/common/Toast';
+import { fetchComponentById } from '../services/componentService';
 
 export default function ComponentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [component, setComponent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const list = getStoredComponents();
-    const found = list.find((c) => c.id === id);
-    if (found) {
-      setComponent(found);
-    } else {
-      // Default to first if not found
-      setComponent(list[0]);
-    }
-  }, [id]);
+    let isMounted = true;
+    setIsLoading(true);
 
-  if (!component) {
-    return <div style={{ padding: '2rem' }}>Memuat informasi komponen...</div>;
+    fetchComponentById(id)
+      .then((data) => {
+        if (isMounted) {
+          setComponent(data);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsLoading(false);
+          navigate('/components');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, navigate]);
+
+  if (isLoading || !component) {
+    return (
+      <div className="component-detail-page" aria-busy="true">
+        <div className="skeleton" style={{ width: '200px', height: '24px', marginBottom: '1.5rem' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '2rem' }}>
+          <div className="skeleton-card" style={{ height: '380px' }}>
+            <div className="skeleton" style={{ width: '60%', height: '32px' }} />
+            <div className="skeleton" style={{ width: '100%', height: '200px' }} />
+          </div>
+          <div className="skeleton-card" style={{ height: '220px' }}>
+            <div className="skeleton" style={{ width: '50%', height: '24px' }} />
+            <div className="skeleton" style={{ width: '100%', height: '80px' }} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const isAvailable = component.status === 'TERSEDIA' && component.stock > 0;
@@ -223,7 +252,7 @@ export default function ComponentDetail() {
                 type="button"
                 className="btn-outline"
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                onClick={() => alert(`Pengingat diset untuk ${component.name}. Anda akan diberitahu jika stok tersedia.`)}
+                onClick={() => toast.info(`Pengingat diset untuk ${component.name}. Anda akan diberitahu jika stok kembali tersedia.`)}
               >
                 <Bell size={18} /> Ingatkan saat tersedia
               </button>

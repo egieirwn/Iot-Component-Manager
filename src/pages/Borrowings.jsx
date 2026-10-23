@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Clock, RotateCcw } from 'lucide-react';
 import StatusBadge from '../components/components/StatusBadge';
+import { useToast } from '../components/common/Toast';
 import {
   getStoredBorrowings,
   getStoredComponents,
-  saveStoredBorrowings,
-  saveStoredComponents
+  processReturn
 } from '../services/componentService';
 
 export default function Borrowings() {
+  const toast = useToast();
   const [borrowings, setBorrowings] = useState([]);
   const [components, setComponents] = useState([]);
   const [activeTab, setActiveTab] = useState('aktif'); // 'aktif' | 'riwayat'
@@ -18,6 +19,7 @@ export default function Borrowings() {
   const [selectedBorrowing, setSelectedBorrowing] = useState(null);
   const [returnCondition, setReturnCondition] = useState('Baik');
   const [returnNotes, setReturnNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setBorrowings(getStoredBorrowings());
@@ -30,71 +32,31 @@ export default function Borrowings() {
     setReturnNotes('');
   };
 
-  const handleConfirmReturn = (e) => {
+  const handleConfirmReturn = async (e) => {
     e.preventDefault();
     if (!selectedBorrowing) return;
 
-    const returnDateStr = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    setIsSubmitting(true);
+    try {
+      const result = await processReturn({
+        borrowId: selectedBorrowing.id,
+        condition: returnCondition,
+        notes: returnNotes.trim()
+      });
 
-    // 1. Update status peminjaman menjadi DIKEMBALIKAN (TIDAK dihapus dari array!)
-    const updatedBorrowings = borrowings.map((b) => {
-      if (b.id === selectedBorrowing.id) {
-        return {
-          ...b,
-          status: 'DIKEMBALIKAN',
-          returnDate: returnDateStr,
-          returnCondition: returnCondition,
-          returnNotes: returnNotes || `Komponen dikembalikan dengan kondisi: ${returnCondition}`
-        };
+      if (result.success) {
+        setBorrowings(result.updatedBorrowings);
+        setComponents(result.updatedComponents);
+        setSelectedBorrowing(null);
+        toast.success(
+          `Pengembalian berhasil dicatat! Status: DIKEMBALIKAN (Kondisi: ${returnCondition}).`
+        );
       }
-      return b;
-    });
-
-    setBorrowings(updatedBorrowings);
-    saveStoredBorrowings(updatedBorrowings);
-
-   const updatedComponents = components.map((c) => {
-      if (c.id === selectedBorrowing.componentId) {
-        let newStock = c.stock;
-        let newMaintenance = c.maintenanceStock || 0;
-        let newDamaged = c.damagedStock || 0;
-
-        // Ambil jumlah barang (default 1 jika quantity tidak terdefinisi)
-        const qty = selectedBorrowing.quantity || 1;
-
-        if (returnCondition === 'Baik') {
-          // Hanya jika kondisi Baik, stok siap pakai bertambah
-          newStock += qty;
-        } else if (returnCondition === 'Perlu Pengecekan') {
-          // Masuk ke stok perlu pengecekan
-          newMaintenance += qty;
-        } else if (returnCondition === 'Rusak') {
-          // Masuk ke stok rusak
-          newDamaged += qty;
-        }
-
-        return {
-          ...c,
-          stock: newStock,
-          maintenanceStock: newMaintenance,
-          damagedStock: newDamaged,
-          status: newStock > 0 ? 'TERSEDIA' : 'DIPINJAM'
-        };
-      }
-      return c;
-    });
-
-    setComponents(updatedComponents);
-    saveStoredComponents(updatedComponents);
-
-    setSelectedBorrowing(null);
-    alert(
-      `Pengembalian berhasil dicatat! Status: DIKEMBALIKAN (Kondisi: ${returnCondition}). Catatan tersimpan di riwayat transaksi.`
-    );
+    } catch (err) {
+      toast.error(err.message || 'Gagal memproses pengembalian barang.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const activeBorrowings = borrowings.filter((b) => b.status === 'DIPINJAM');
@@ -232,11 +194,18 @@ export default function Borrowings() {
                   type="button"
                   className="btn-outline"
                   onClick={() => setSelectedBorrowing(null)}
+                  disabled={isSubmitting}
                 >
                   Batal
                 </button>
-                <button type="submit" className="btn-primary">
-                  Konfirmasi Pengembalian
+                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner" style={{ marginRight: '0.5rem' }} /> Memproses...
+                    </>
+                  ) : (
+                    'Konfirmasi Pengembalian'
+                  )}
                 </button>
               </div>
             </form>

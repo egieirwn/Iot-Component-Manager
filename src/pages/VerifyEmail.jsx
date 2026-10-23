@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
+import { useToast } from '../components/common/Toast';
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   return (
     <div
@@ -75,7 +77,7 @@ export default function VerifyEmail() {
               type="button"
               className="btn-outline"
               style={{ width: '100%', padding: '0.75rem' }}
-              onClick={() => alert('Email verifikasi baru telah dikirimkan ke kotak masuk Anda!')}
+              onClick={() => toast.success('Tautan verifikasi baru berhasil dikirim ke kotak masuk Anda!')}
             >
               Kirim ulang email
             </button>

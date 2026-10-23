@@ -2,61 +2,85 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ComponentItem from '../components/components/ComponentItem';
 import StatusBadge from '../components/components/StatusBadge';
+import BorrowModal from '../components/components/BorrowModal';
+import ComponentSkeleton from '../components/common/ComponentSkeleton';
+import { useToast } from '../components/common/Toast';
 import {
-  getStoredComponents,
-  getStoredBorrowings,
+  fetchComponents,
+  fetchBorrowings,
   getStoredUser,
-  saveStoredBorrowings,
-  saveStoredComponents
+  processReturn
 } from '../services/componentService';
 
 export default function Dashboard() {
+  const toast = useToast();
   const [components, setComponents] = useState([]);
   const [borrowings, setBorrowings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedComponentForBorrow, setSelectedComponentForBorrow] = useState(null);
   const user = getStoredUser();
 
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const [comps, borrows] = await Promise.all([
+        fetchComponents(),
+        fetchBorrowings()
+      ]);
+      setComponents(comps);
+      setBorrowings(borrows);
+    } catch {
+      // Fallback if needed
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setComponents(getStoredComponents());
-    setBorrowings(getStoredBorrowings());
+    loadDashboardData();
   }, []);
 
-  // Handle return of component
-  const handleReturn = (borrowId) => {
+  // Handle return of component with status update and toast
+  const handleReturn = async (borrowId) => {
     const borrowItem = borrowings.find((b) => b.id === borrowId);
     if (!borrowItem) return;
 
-    // Remove from borrowings
-    const updatedBorrowings = borrowings.filter((b) => b.id !== borrowId);
-    setBorrowings(updatedBorrowings);
-    saveStoredBorrowings(updatedBorrowings);
+    try {
+      const result = await processReturn({
+        borrowId,
+        condition: 'Baik',
+        notes: 'Dikembalikan melalui dashboard utama'
+      });
 
-    // Increase stock for the returned component
-    const updatedComponents = components.map((c) => {
-      if (c.id === borrowItem.componentId) {
-        const newStock = c.stock + borrowItem.quantity;
-        return {
-          ...c,
-          stock: newStock,
-          status: newStock > 0 ? 'TERSEDIA' : 'DIPINJAM'
-        };
+      if (result.success) {
+        setBorrowings(result.updatedBorrowings);
+        setComponents(result.updatedComponents);
+        toast.success(`Komponen ${borrowItem.componentName} berhasil dikembalikan!`);
       }
-      return c;
-    });
-    setComponents(updatedComponents);
-    saveStoredComponents(updatedComponents);
+    } catch (err) {
+      toast.error(err.message || 'Gagal memproses pengembalian.');
+    }
   };
 
-  const activeLoanCount = borrowings.length;
+  const handleBorrowSuccess = (result) => {
+    if (result?.updatedComponents) {
+      setComponents(result.updatedComponents);
+    }
+    loadDashboardData();
+  };
+
+  const activeBorrowings = borrowings.filter((b) => b.status === 'DIPINJAM');
+  const activeLoanCount = activeBorrowings.length;
   const availableCount = components.filter((c) => c.status === 'TERSEDIA').length;
-  const totalStockUnits = components.reduce((acc, curr) => acc + curr.stock, 0);
+  const totalStockUnits = components.reduce((acc, curr) => acc + (curr.stock || 0), 0);
 
   return (
     <div className="dashboard-page">
       {/* Dashboard Top Header */}
       <div className="dashboard-header">
         <div className="dashboard-header-title">
-          <h1>Selamat pagi, {user.name.split(' ')[0]}</h1>
-          <p>Ringkasan inventaris · 5 Okt 2026</p>
+          <h1>Selamat pagi, {user.name ? user.name.split(' ')[0] : 'Mahasiswa'}</h1>
+          <p>Ringkasan inventaris laboratorium IoT Campus</p>
         </div>
         <Link to="/components" className="btn-primary">
           Lihat semua komponen
@@ -67,26 +91,26 @@ export default function Dashboard() {
       <div className="stat-grid">
         <div className="stat-card">
           <h3>Peminjaman aktif</h3>
-          <div className="stat-number">{activeLoanCount}</div>
-          <div className="stat-subtext">{activeLoanCount} transaksi peminjaman oleh Anda</div>
+          <div className="stat-number">{isLoading ? '...' : activeLoanCount}</div>
+          <div className="stat-subtext">{activeLoanCount} transaksi peminjaman aktif oleh Anda</div>
         </div>
 
         <div className="stat-card">
           <h3>Kembali segera</h3>
           <div className="stat-number">
-            {borrowings.length > 0 ? 1 : 0}
+            {isLoading ? '...' : activeBorrowings.length > 0 ? 1 : 0}
           </div>
           <div className="stat-subtext">
-            {borrowings.length > 0
-              ? `Jatuh tempo ${borrowings[0].dueDate}`
+            {activeBorrowings.length > 0
+              ? `Jatuh tempo ${activeBorrowings[0].dueDate}`
               : 'Tidak ada tenggat terdekat'}
           </div>
         </div>
 
         <div className="stat-card">
           <h3>Komponen tersedia</h3>
-          <div className="stat-number">{availableCount}</div>
-          <div className="stat-subtext">{totalStockUnits} unit total dalam inventaris</div>
+          <div className="stat-number">{isLoading ? '...' : availableCount}</div>
+          <div className="stat-subtext">{totalStockUnits} unit total siap pakai</div>
         </div>
       </div>
 
@@ -98,8 +122,12 @@ export default function Dashboard() {
         </div>
 
         <div className="table-container">
-          {borrowings.length === 0 ? (
-            <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          {isLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+              <span className="spinner spinner-primary" style={{ marginRight: '0.5rem' }} /> Memuat data peminjaman...
+            </div>
+          ) : activeBorrowings.length === 0 ? (
+            <p style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
               Tidak ada peminjaman aktif saat ini.
             </p>
           ) : (
@@ -115,10 +143,14 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {borrowings.map((item) => (
+                {activeBorrowings.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <strong>{item.componentName}</strong>
+                      <strong>
+                        <Link to={`/components/${item.componentId}`} style={{ color: 'var(--color-primary)' }}>
+                          {item.componentName}
+                        </Link>
+                      </strong>
                       <br />
                       <small style={{ color: 'var(--color-text-muted)' }}>
                         {item.componentCode} · Lab: {item.pickupLab}
@@ -155,12 +187,29 @@ export default function Dashboard() {
           <Link to="/components">Lihat semua komponen</Link>
         </div>
 
-        <div className="component-grid">
-          {components.slice(0, 3).map((comp) => (
-            <ComponentItem key={comp.id} component={comp} />
-          ))}
-        </div>
+        {isLoading ? (
+          <ComponentSkeleton count={3} />
+        ) : (
+          <div className="component-grid">
+            {components.slice(0, 3).map((comp) => (
+              <ComponentItem
+                key={comp.id}
+                component={comp}
+                onBorrow={() => setSelectedComponentForBorrow(comp)}
+              />
+            ))}
+          </div>
+        )}
       </section>
+
+      {/* Modal Pinjam jika diklik dari Popular Components */}
+      {selectedComponentForBorrow && (
+        <BorrowModal
+          component={selectedComponentForBorrow}
+          onClose={() => setSelectedComponentForBorrow(null)}
+          onSuccess={handleBorrowSuccess}
+        />
+      )}
     </div>
   );
 }
