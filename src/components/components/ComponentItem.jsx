@@ -7,9 +7,11 @@ export default function ComponentItem({ component, onBorrow }) {
 
   return (
     <article className="component-card">
-      <div className="component-card-image">
-        <img src={component.image} alt={component.name} />
-      </div>
+      <Link to={`/components/${component.id}`} style={{ display: 'block' }}>
+        <div className="component-card-image">
+          <img src={component.image} alt={component.name} />
+        </div>
+      </Link>
       <div className="component-card-body">
         <h3>
           <Link to={`/components/${component.id}`}>{component.name}</Link>

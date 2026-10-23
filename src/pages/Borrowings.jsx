@@ -304,7 +304,11 @@ export default function Borrowings() {
                 {returnedBorrowings.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <strong>{item.componentName}</strong>
+                      <strong>
+                        <Link to={`/components/${item.componentId}`} style={{ color: 'var(--color-primary)' }}>
+                          {item.componentName}
+                        </Link>
+                      </strong>
                       <br />
                       <small style={{ color: 'var(--color-text-muted)' }}>{item.componentCode}</small>
                     </td>

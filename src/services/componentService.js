@@ -157,7 +157,11 @@ export const processBorrowing = async (borrowData) => {
         return reject(new Error('Komponen tidak ditemukan di inventaris.'));
       }
 
-      const qty = Number(borrowData.quantity) || 1;
+      const qty = parseInt(borrowData.quantity, 10);
+      if (isNaN(qty) || qty < 1) {
+        return reject(new Error('Jumlah pinjam harus berupa angka bulat positif minimal 1 unit.'));
+      }
+
       if (comp.stock < qty) {
         return reject(new Error(`Stok tidak mencukupi! Tersisa ${comp.stock} unit, diminta ${qty} unit.`));
       }
@@ -223,6 +227,11 @@ export const processReturn = async ({ borrowId, condition = 'Baik', notes = '' }
       const targetBorrow = borrowings.find((b) => b.id === borrowId);
       if (!targetBorrow) {
         return reject(new Error('Transaksi peminjaman tidak ditemukan.'));
+      }
+
+      // Proteksi Integritas: Jangan izinkan pengembalian dua kali pada transaksi yang sama
+      if (targetBorrow.status === 'DIKEMBALIKAN') {
+        return reject(new Error('Komponen dari transaksi ini sudah pernah dikembalikan sebelumnya.'));
       }
 
       const returnDateStr = new Date().toLocaleDateString('id-ID', {
