@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, User, AlertCircle } from 'lucide-react';
-import { getStoredComponents, getStoredUser } from '../services/componentService';
+import { fetchComponentById } from '../services/componentService';
+import { useAuth } from '../context/AuthContext';
 
 export default function BorrowForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const [component, setComponent] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const user = getStoredUser();
 
   const [formData, setFormData] = useState({
     quantity: '1',
@@ -21,13 +22,21 @@ export default function BorrowForm() {
   });
 
   useEffect(() => {
-    const list = getStoredComponents();
-    const found = list.find((c) => c.id === id);
-    if (found) {
-      setComponent(found);
-    } else {
-      navigate('/components');
-    }
+    let active = true;
+    fetchComponentById(id)
+      .then((comp) => {
+        if (active) {
+          if (comp) setComponent(comp);
+          else navigate('/components');
+        }
+      })
+      .catch(() => {
+        if (active) navigate('/components');
+      });
+
+    return () => {
+      active = false;
+    };
   }, [id, navigate]);
 
   if (!component) return null;
@@ -109,10 +118,10 @@ export default function BorrowForm() {
             purpose: formData.purpose.trim(),
             returnDate: formData.returnDate,
             notes: formData.notes.trim(),
-            borrowerName: user.name,
-            borrowerNim: user.nim,
-            borrowerEmail: user.email,
-            borrowerMajor: user.major
+            borrowerName: profile?.full_name || user?.email || 'Mahasiswa',
+            borrowerNim: profile?.identity_number || '-',
+            borrowerEmail: user?.email || profile?.email || '',
+            borrowerMajor: profile?.study_program || profile?.faculty || 'Teknik Informatika'
           }
         }
       });
@@ -190,9 +199,9 @@ export default function BorrowForm() {
       >
         <User size={24} color="var(--color-primary)" />
         <div>
-          <strong style={{ fontSize: '0.9375rem' }}>Peminjam: {user.name}</strong>
+          <strong style={{ fontSize: '0.9375rem' }}>Peminjam: {profile?.full_name || 'Akun Kampus'}</strong>
           <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-            NIM: {user.nim} · {user.major} · {user.email}
+            {profile?.role === 'dosen' ? 'NIP' : 'NIM'}: {profile?.identity_number || '-'} · {profile?.study_program || 'Sistem Informasi'} · {user?.email || profile?.email}
           </p>
         </div>
       </div>
