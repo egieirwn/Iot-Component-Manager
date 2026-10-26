@@ -1,8 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Cpu, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Cpu, ClipboardList, PackagePlus, UserCheck, Shield } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+
   return (
     <aside className="sidebar" aria-label="Bilah navigasi utama">
       <div className="sidebar-logo">
@@ -27,7 +31,7 @@ export default function Sidebar() {
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
           <Cpu size={20} />
-          <span>Komponen</span>
+          <span>Katalog Komponen</span>
         </NavLink>
 
         <NavLink
@@ -35,8 +39,43 @@ export default function Sidebar() {
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
           <ClipboardList size={20} />
-          <span>Peminjaman Saya</span>
+          <span>{isAdmin || profile?.role === 'dosen' ? 'Riwayat Peminjaman' : 'Peminjaman Saya'}</span>
         </NavLink>
+
+        {isAdmin && (
+          <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
+            <span
+              style={{
+                fontSize: '0.6875rem',
+                fontWeight: 800,
+                color: 'var(--color-primary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                padding: '0 0.875rem',
+                display: 'block',
+                marginBottom: '0.5rem'
+              }}
+            >
+              Menu Administrator
+            </span>
+
+            <NavLink
+              to="/admin/inventory"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <PackagePlus size={20} />
+              <span>Kelola Inventaris</span>
+            </NavLink>
+
+            <NavLink
+              to="/admin/role-requests"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <UserCheck size={20} />
+              <span>Verifikasi Dosen</span>
+            </NavLink>
+          </div>
+        )}
       </nav>
 
       <div className="sidebar-help-card">

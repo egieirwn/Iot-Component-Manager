@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { processBorrowing } from '../../services/componentService';
 import { useToast } from '../common/Toast';
+import { useAuth } from '../../context/AuthContext';
 
 export default function BorrowModal({ component, onClose, onSuccess }) {
   const toast = useToast();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
-    borrowerName: '',
-    nim: '',
+    borrowerName: profile?.full_name || '',
+    nim: profile?.identity_number || '',
     quantity: '1',
     borrowDate: new Date().toISOString().split('T')[0],
     durationDays: '3',
     notes: ''
   });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData((prev) => ({
+        ...prev,
+        borrowerName: prev.borrowerName || profile.full_name || '',
+        nim: prev.nim || profile.identity_number || ''
+      }));
+    }
+  }, [profile]);
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
