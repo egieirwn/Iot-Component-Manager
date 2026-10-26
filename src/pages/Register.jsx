@@ -1,20 +1,40 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, User, Mail, Lock, ShieldCheck, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 
 export default function Register() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [email, setEmail] = useState('akira.tomoe@un.ac.id');
+  const { signUp, isConfigured } = useAuth();
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [roleType, setRoleType] = useState('mahasiswa'); // 'mahasiswa' | 'dosen'
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  // Password Requirement Indicators
+  const hasMinLength = password.length >= 8;
+  const hasNumber = /\d/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+  const hasNumberAndSymbol = hasNumber && hasSymbol;
+  const isConfirmMatch = confirmPassword.length > 0 && confirmPassword === password;
 
   const validate = () => {
     const newErrors = {};
+    const trimmedName = fullName.trim();
     const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      newErrors.fullName = 'Nama lengkap wajib diisi.';
+    } else if (trimmedName.length < 3) {
+      newErrors.fullName = 'Nama lengkap minimal 3 karakter.';
+    }
 
     if (!trimmedEmail) {
       newErrors.email = 'Email kampus wajib diisi.';
@@ -38,16 +58,45 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
+    setServerError('');
+
     if (!validate()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const { data, error } = await signUp({
+        email,
+        password,
+        fullName,
+        requestedRole: roleType
+      });
+
+      if (error) {
+        if (error.message?.toLowerCase().includes('already registered')) {
+          setServerError('Alamat email ini sudah terdaftar. Silakan masuk atau gunakan fitur lupa kata sandi.');
+        } else if (
+          error.message?.toLowerCase().includes('rate limit') ||
+          error.message?.toLowerCase().includes('security purposes') ||
+          error.message?.toLowerCase().includes('over_email_send_rate_limit')
+        ) {
+          setServerError(
+            'Batas pendaftaran Supabase tercapai (Rate Limit). Untuk testing bebas limit: matikan opsi "Confirm email" di Supabase Dashboard (Authentication > Providers > Email).'
+          );
+        } else {
+          setServerError(error.message || 'Terjadi kesalahan saat pendaftaran akun.');
+        }
+        return;
+      }
+
       toast.success('Pendaftaran akun berhasil! Silakan periksa email untuk verifikasi.');
-      navigate('/verify-email');
-    }, 450);
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+    } catch (err) {
+      setServerError(err.message || 'Gagal menghubungi server autentikasi.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -88,19 +137,64 @@ export default function Register() {
           className="card"
           style={{
             width: '100%',
-            maxWidth: '460px',
+            maxWidth: '500px',
             padding: '2.5rem',
             boxShadow: 'var(--shadow-lg)'
           }}
         >
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-            Buat akun Anda
+            Buat akun inventori IoT
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
-            Gunakan alamat email kampus @un.ac.id untuk mendaftar.
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+            Daftar menggunakan email institusi kampus Anda.
           </p>
 
-          <form onSubmit={handleRegister} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {serverError && (
+            <div
+              style={{
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#DC2626',
+                padding: '0.875rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <AlertCircle size={18} />
+              <span>{serverError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+            {/* Nama Lengkap */}
+            <div className="form-group">
+              <label htmlFor="reg-name" className="form-label">
+                Nama lengkap *
+              </label>
+              <input
+                id="reg-name"
+                type="text"
+                placeholder="Contoh: Akira Tomoe"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: '' }));
+                }}
+                className={`form-input ${errors.fullName ? 'has-error' : ''}`}
+                disabled={isSubmitting}
+              />
+              {errors.fullName && (
+                <span className="error-text">
+                  <AlertCircle size={14} /> {errors.fullName}
+                </span>
+              )}
+            </div>
+
+            {/* Email Kampus */}
             <div className="form-group">
               <label htmlFor="reg-email" className="form-label">
                 Email kampus *
@@ -108,6 +202,7 @@ export default function Register() {
               <input
                 id="reg-email"
                 type="email"
+                placeholder="nama@un.ac.id"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -123,6 +218,53 @@ export default function Register() {
               )}
             </div>
 
+            {/* Pilihan Peran Akun */}
+            <div className="form-group">
+              <label className="form-label">Tipe akun kampus *</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRoleType('mahasiswa')}
+                  style={{
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${roleType === 'mahasiswa' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    backgroundColor: roleType === 'mahasiswa' ? 'var(--color-primary-light)' : 'transparent',
+                    color: roleType === 'mahasiswa' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    textAlign: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Mahasiswa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoleType('dosen')}
+                  style={{
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${roleType === 'dosen' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    backgroundColor: roleType === 'dosen' ? 'var(--color-primary-light)' : 'transparent',
+                    color: roleType === 'dosen' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    textAlign: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Dosen / Peneliti
+                </button>
+              </div>
+              {roleType === 'dosen' && (
+                <p style={{ fontSize: '0.75rem', color: '#B45309', backgroundColor: '#FEF3C7', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', marginTop: '0.5rem' }}>
+                  ℹ️ Permintaan peran Dosen akan ditinjau oleh Administrator Lab sebelum hak akses khusus diaktifkan.
+                </p>
+              )}
+            </div>
+
+            {/* Kata Sandi */}
             <div className="form-group">
               <label htmlFor="reg-password" className="form-label">
                 Kata sandi *
@@ -146,6 +288,7 @@ export default function Register() {
               )}
             </div>
 
+            {/* Konfirmasi Kata Sandi */}
             <div className="form-group">
               <label htmlFor="reg-confirmPassword" className="form-label">
                 Konfirmasi kata sandi *
@@ -169,9 +312,70 @@ export default function Register() {
               )}
             </div>
 
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-              <p>○ Minimal 8 karakter</p>
-              <p>○ Disarankan menyertakan angka dan simbol</p>
+            {/* Dynamic Password Requirements Checklist */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8125rem', marginTop: '-0.25rem', marginBottom: '0.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: hasMinLength ? '#16A34A' : 'var(--color-text-muted)',
+                  fontWeight: hasMinLength ? 600 : 400,
+                  transition: 'color 0.2s ease, font-weight 0.2s ease'
+                }}
+              >
+                {hasMinLength ? (
+                  <Check size={14} strokeWidth={2.5} color="#16A34A" />
+                ) : (
+                  <span style={{ display: 'inline-block', width: '14px', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1 }}>○</span>
+                )}
+                <span>Minimal 8 karakter</span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: hasNumberAndSymbol ? '#16A34A' : 'var(--color-text-muted)',
+                  fontWeight: hasNumberAndSymbol ? 600 : 400,
+                  transition: 'color 0.2s ease, font-weight 0.2s ease'
+                }}
+              >
+                {hasNumberAndSymbol ? (
+                  <Check size={14} strokeWidth={2.5} color="#16A34A" />
+                ) : (
+                  <span style={{ display: 'inline-block', width: '14px', textAlign: 'center', fontSize: '0.75rem', lineHeight: 1 }}>○</span>
+                )}
+                <span>Disarankan menyertakan angka dan simbol</span>
+              </div>
+
+              {confirmPassword.length > 0 && !errors.confirmPassword && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: isConfirmMatch ? '#16A34A' : '#DC2626',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    marginTop: '0.125rem',
+                    transition: 'color 0.2s ease'
+                  }}
+                >
+                  {isConfirmMatch ? (
+                    <>
+                      <Check size={14} strokeWidth={2.5} color="#16A34A" />
+                      <span>Konfirmasi kata sandi cocok</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} color="#DC2626" />
+                      <span>Konfirmasi kata sandi belum cocok</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <button

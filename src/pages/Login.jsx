@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
-  const [email, setEmail] = useState('akira.tomoe@un.ac.id');
-  const [password, setPassword] = useState('password123');
+  const { signIn, refreshProfile } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
@@ -31,16 +37,48 @@ export default function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setServerError('');
+    setUnconfirmedEmail('');
+
     if (!validate()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const { data, error } = await signIn({
+        email,
+        password
+      });
+
+      if (error) {
+        const msg = error.message?.toLowerCase() || '';
+        if (msg.includes('email not confirmed')) {
+          setUnconfirmedEmail(email.trim());
+          setServerError('Alamat email belum diverifikasi. Silakan periksa inbox email Anda.');
+        } else if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+          setServerError('Email atau kata sandi yang Anda masukkan salah. Silakan coba lagi.');
+        } else {
+          setServerError(error.message || 'Gagal masuk ke akun.');
+        }
+        return;
+      }
+
+      // Login berhasil, periksa kelengkapan profil
+      const profile = await refreshProfile();
       toast.success('Selamat datang kembali! Berhasil masuk ke inventaris.');
-      navigate('/dashboard');
-    }, 400);
+
+      const targetPath = location.state?.from?.pathname || '/dashboard';
+      if (profile && !profile.profile_completed) {
+        navigate('/complete-profile', { replace: true });
+      } else {
+        navigate(targetPath, { replace: true });
+      }
+    } catch (err) {
+      setServerError(err.message || 'Terjadi gangguan jaringan saat menghubungkan ke server.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -63,7 +101,7 @@ export default function Login() {
       >
         <div className="logo-badge">U</div>
         <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-          <strong>Universitas</strong> Butuh bantuan? Hubungi lab support
+          <strong>Campus IoT · Universitas</strong> Inventaris Laboratorium
         </span>
       </header>
 
@@ -93,6 +131,42 @@ export default function Login() {
             Gunakan akun kampus Universitas untuk mengakses komponen IoT.
           </p>
 
+          {serverError && (
+            <div
+              style={{
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#DC2626',
+                padding: '0.875rem 1rem',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.375rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={18} />
+                <span>{serverError}</span>
+              </div>
+              {unconfirmedEmail && (
+                <Link
+                  to={`/verify-email?email=${encodeURIComponent(unconfirmedEmail)}`}
+                  style={{
+                    color: 'var(--color-primary)',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    fontSize: '0.8125rem',
+                    marginLeft: '1.625rem'
+                  }}
+                >
+                  Buka halaman verifikasi email &raquo;
+                </Link>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="form-group">
               <label htmlFor="login-email" className="form-label">
@@ -101,6 +175,7 @@ export default function Login() {
               <input
                 id="login-email"
                 type="email"
+                placeholder="nama@un.ac.id"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -123,6 +198,7 @@ export default function Login() {
               <input
                 id="login-password"
                 type="password"
+                placeholder="Masukkan kata sandi"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -170,7 +246,7 @@ export default function Login() {
               lineHeight: 1.4
             }}
           >
-            Anda dapat mencoba lagi atau menghubungi lab support jika masalah berlanjut.
+            Peminjaman komponen IoT memerlukan akun terverifikasi dengan profil lengkap.
           </div>
 
           <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
