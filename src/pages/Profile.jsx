@@ -3,6 +3,7 @@ import { User, Mail, Phone, BookOpen, Building, ShieldCheck, Edit3, Check, X, Al
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { resubmitRoleRequest } from '../services/roleService';
+import { formatE164Phone } from '../services/notificationService';
 
 export default function Profile() {
   const { user, profile, updateUserProfile, updateUserEmail, refreshProfile } = useAuth();
@@ -13,6 +14,7 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
+    whatsappOptIn: true,
     studyProgram: '',
     faculty: ''
   });
@@ -37,7 +39,8 @@ export default function Profile() {
     if (profile) {
       setFormData({
         fullName: profile.full_name || '',
-        phone: profile.phone || '',
+        phone: profile.phone || profile.phone_number || '',
+        whatsappOptIn: profile.whatsapp_notification_opt_in !== false,
         studyProgram: profile.study_program || '',
         faculty: profile.faculty || ''
       });
@@ -64,8 +67,11 @@ export default function Profile() {
     }
     if (!formData.phone.trim()) {
       newErrors.phone = 'Nomor telepon tidak boleh kosong.';
-    } else if (!/^[0-9+ -]{8,18}$/.test(formData.phone.trim())) {
-      newErrors.phone = 'Format nomor telepon tidak valid.';
+    } else {
+      const formatted = formatE164Phone(formData.phone.trim());
+      if (!formatted) {
+        newErrors.phone = 'Format nomor telepon tidak valid. Gunakan format internasional (contoh: 08123456789 atau +628123456789).';
+      }
     }
     if (!formData.studyProgram.trim()) {
       newErrors.studyProgram = 'Program studi / unit tidak boleh kosong.';
@@ -83,9 +89,12 @@ export default function Profile() {
 
     setIsSaving(true);
     try {
+      const formattedPhone = formatE164Phone(formData.phone.trim());
       const { error } = await updateUserProfile({
         full_name: formData.fullName.trim(),
         phone: formData.phone.trim(),
+        phone_number: formattedPhone,
+        whatsapp_notification_opt_in: formData.whatsappOptIn,
         study_program: formData.studyProgram.trim(),
         faculty: formData.faculty.trim()
       });
@@ -430,16 +439,50 @@ export default function Profile() {
                 id="prof-phone"
                 name="phone"
                 type="tel"
+                placeholder="Contoh: 08123456789 atau +628123456789"
                 value={formData.phone}
                 onChange={handleChange}
                 className={`form-input ${errors.phone ? 'has-error' : ''}`}
                 disabled={isSaving}
               />
+              <small style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                Gunakan format internasional E.164 (diawali 08... atau +628...).
+              </small>
               {errors.phone && (
                 <span className="error-text">
                   <AlertCircle size={14} /> {errors.phone}
                 </span>
               )}
+
+              {/* Checkbox Persetujuan Notifikasi WhatsApp */}
+              <div
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  backgroundColor: 'var(--color-bg-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border)'
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    name="whatsappOptIn"
+                    checked={formData.whatsappOptIn}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, whatsappOptIn: e.target.checked }))}
+                    style={{ marginTop: '0.2rem' }}
+                    disabled={isSaving}
+                  />
+                  <div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
+                      Izinkan Pengingat Jatuh Tempo via WhatsApp
+                    </span>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.2rem', lineHeight: 1.4 }}>
+                      Pemberitahuan otomatis resmi hanya akan dikirimkan satu kali saat batas waktu peminjaman Anda telah terlewati.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -557,7 +600,21 @@ export default function Profile() {
               </tr>
               <tr>
                 <td style={{ color: 'var(--color-text-secondary)', fontWeight: 600 }}>Nomor Telepon / WhatsApp</td>
-                <td>{profile?.phone || '-'}</td>
+                <td>{profile?.phone || profile?.phone_number || '-'}</td>
+              </tr>
+              <tr>
+                <td style={{ color: 'var(--color-text-secondary)', fontWeight: 600 }}>Notifikasi WhatsApp</td>
+                <td>
+                  {profile?.whatsapp_notification_opt_in !== false ? (
+                    <span style={{ color: 'var(--status-available-text)', fontWeight: 600, fontSize: '0.8125rem' }}>
+                      Aktif (Diizinkan)
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>
+                      Nonaktif (Pengguna Menolak Notifikasi)
+                    </span>
+                  )}
+                </td>
               </tr>
             </tbody>
           </table>

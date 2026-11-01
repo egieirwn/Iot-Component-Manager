@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   study_program TEXT DEFAULT '',   -- Program studi atau Jurusan
   faculty TEXT DEFAULT '',         -- Fakultas atau Unit
   phone TEXT DEFAULT '',           -- Nomor telepon WhatsApp/kontak
+  phone_number TEXT DEFAULT '',    -- Format nomor telepon E.164 (+62...)
+  whatsapp_notification_opt_in BOOLEAN NOT NULL DEFAULT TRUE, -- Izin notifikasi WhatsApp
   avatar_url TEXT DEFAULT '',      -- URL foto profil
   profile_completed BOOLEAN NOT NULL DEFAULT FALSE,
   role_reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -84,6 +86,9 @@ CREATE TABLE IF NOT EXISTS public.borrowings (
   return_notes TEXT DEFAULT NULL,
   checklist JSONB DEFAULT '[]'::jsonb,
   receipt_code TEXT DEFAULT NULL,
+  due_at TIMESTAMPTZ DEFAULT NULL,
+  overdue_notified_at TIMESTAMPTZ DEFAULT NULL,
+  overdue_notification_status TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -91,6 +96,8 @@ CREATE TABLE IF NOT EXISTS public.borrowings (
 CREATE INDEX IF NOT EXISTS idx_borrowings_user_id ON public.borrowings(user_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_component_id ON public.borrowings(component_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_status ON public.borrowings(status);
+CREATE INDEX IF NOT EXISTS idx_borrowings_due_at ON public.borrowings(due_at);
+CREATE INDEX IF NOT EXISTS idx_borrowings_overdue_notified_at ON public.borrowings(overdue_notified_at);
 
 -- Table: public.component_inspections (Damaged return reporting and Admin inspection)
 CREATE TABLE IF NOT EXISTS public.component_inspections (
@@ -118,6 +125,23 @@ CREATE TABLE IF NOT EXISTS public.component_inspections (
 CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.component_inspections(inspection_status);
 CREATE INDEX IF NOT EXISTS idx_inspections_component_id ON public.component_inspections(component_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_borrowing_id ON public.component_inspections(borrowing_id);
+
+-- Table: public.notification_logs (WhatsApp overdue notification dispatch logs)
+CREATE TABLE IF NOT EXISTS public.notification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  borrowing_id TEXT REFERENCES public.borrowings(id) ON DELETE CASCADE,
+  recipient_phone TEXT NOT NULL,
+  recipient_name TEXT,
+  provider TEXT NOT NULL DEFAULT 'whatsapp_business',
+  template_name TEXT DEFAULT 'overdue_borrowing_reminder',
+  status TEXT NOT NULL,
+  error_message TEXT,
+  response_payload JSONB DEFAULT '{}'::jsonb,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_logs_borrowing_id ON public.notification_logs(borrowing_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_sent_at ON public.notification_logs(sent_at);
 
 -- ==============================================================================
 -- 5. TRIGGERS & FUNCTIONS
@@ -914,6 +938,104 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: get_overdue_borrowings_for_notification
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_overdue_borrowings_for_notification()
+RETURNS TABLE (
+  borrowing_id TEXT,
+  component_id TEXT,
+  component_name TEXT,
+  user_id UUID,
+  borrower_name TEXT,
+  borrower_email TEXT,
+  phone_number TEXT,
+  whatsapp_opt_in BOOLEAN,
+  due_at TIMESTAMPTZ,
+  days_overdue INTEGER,
+  pickup_lab TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    b.id AS borrowing_id,
+    b.component_id,
+    b.component_name,
+    b.user_id,
+    COALESCE(p.full_name, b.borrower_name) AS borrower_name,
+    COALESCE(p.email, b.borrower_email) AS borrower_email,
+    COALESCE(p.phone_number, p.phone) AS phone_number,
+    COALESCE(p.whatsapp_notification_opt_in, TRUE) AS whatsapp_opt_in,
+    b.due_at,
+    GREATEST(1, EXTRACT(DAY FROM (now() - b.due_at))::INTEGER) AS days_overdue,
+    COALESCE(b.pickup_lab, 'Laboratorium IoT') AS pickup_lab
+  FROM public.borrowings b
+  LEFT JOIN public.profiles p ON b.user_id = p.id
+  WHERE b.status = 'DIPINJAM'
+    AND b.due_at IS NOT NULL
+    AND b.due_at < now()
+    AND b.overdue_notified_at IS NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: record_overdue_notification_result
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.record_overdue_notification_result(
+  p_borrowing_id TEXT,
+  p_recipient_phone TEXT,
+  p_recipient_name TEXT,
+  p_status TEXT,
+  p_error_message TEXT DEFAULT NULL,
+  p_response_payload JSONB DEFAULT '{}'::jsonb
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_log_id UUID;
+BEGIN
+  INSERT INTO public.notification_logs (
+    borrowing_id,
+    recipient_phone,
+    recipient_name,
+    provider,
+    status,
+    error_message,
+    response_payload,
+    sent_at
+  ) VALUES (
+    p_borrowing_id,
+    p_recipient_phone,
+    p_recipient_name,
+    'whatsapp_business',
+    p_status,
+    p_error_message,
+    p_response_payload,
+    timezone('utc'::text, now())
+  ) RETURNING id INTO v_log_id;
+
+  IF p_status IN ('SENT', 'SIMULATED') THEN
+    UPDATE public.borrowings
+    SET
+      overdue_notified_at = timezone('utc'::text, now()),
+      overdue_notification_status = p_status,
+      updated_at = timezone('utc'::text, now())
+    WHERE id = p_borrowing_id;
+  ELSIF p_status LIKE 'SKIPPED%' THEN
+    UPDATE public.borrowings
+    SET
+      overdue_notification_status = p_status,
+      updated_at = timezone('utc'::text, now())
+    WHERE id = p_borrowing_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'log_id', v_log_id,
+    'borrowing_id', p_borrowing_id,
+    'status', p_status
+  );
+END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ------------------------------------------------------------------------------

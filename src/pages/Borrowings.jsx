@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, AlertCircle, Clock, RotateCcw, ArrowLeft, Check, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, RotateCcw, ArrowLeft, Check, ShieldCheck, MessageSquare } from 'lucide-react';
 import StatusBadge from '../components/components/StatusBadge';
 import { useToast } from '../components/common/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import {
   fetchComponents,
   processReturn
 } from '../services/componentService';
+import { triggerOverdueNotificationCheck } from '../services/notificationService';
 
 const DEFAULT_CHECKLIST_ITEMS = [
   'Sensor dapat membaca suhu dan kelembaban',
@@ -43,6 +44,7 @@ export default function Borrowings() {
   const [returnNotes, setReturnNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [returnReceipt, setReturnReceipt] = useState(null);
+  const [isCheckingOverdue, setIsCheckingOverdue] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -59,6 +61,28 @@ export default function Borrowings() {
       setError(err.message || 'Gagal memuat riwayat peminjaman dari server database.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTriggerOverdueReminders = async () => {
+    setIsCheckingOverdue(true);
+    try {
+      const res = await triggerOverdueNotificationCheck();
+      const r = res.results || res;
+      if (!r || r.total_eligible === 0) {
+        toast.info('Tidak ada peminjaman terlambat yang memerlukan pengingat WhatsApp saat ini.');
+      } else {
+        const count = (r.sent || 0) + (r.simulated || 0);
+        toast.success(
+          `Pengecekan selesai! Notifikasi diproses: ${count} unit, Lewat (Tanpa Izin): ${r.skipped_no_consent || 0}, Lewat (Tanpa No HP): ${r.skipped_no_phone || 0}.`
+        );
+        await loadData();
+      }
+    } catch (err) {
+      console.error('Error triggering overdue reminders:', err);
+      toast.error(err.message || 'Gagal memeriksa notifikasi keterlambatan.');
+    } finally {
+      setIsCheckingOverdue(false);
     }
   };
 
@@ -553,9 +577,23 @@ export default function Borrowings() {
               : 'Kelola daftar komponen yang sedang Anda pinjam dan riwayat transaksi laboratorium'}
           </p>
         </div>
-        <Link to="/components" className="btn-primary">
-          Pinjam Komponen Baru
-        </Link>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {isStaff && (
+            <button
+              type="button"
+              className="btn-outline"
+              disabled={isCheckingOverdue}
+              onClick={handleTriggerOverdueReminders}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', padding: '0.625rem 1rem' }}
+            >
+              <MessageSquare size={16} color="#16A34A" />
+              {isCheckingOverdue ? 'Memeriksa...' : 'Cek Pengingat WhatsApp'}
+            </button>
+          )}
+          <Link to="/components" className="btn-primary">
+            Pinjam Komponen Baru
+          </Link>
+        </div>
       </div>
 
       {/* Error state with retry */}
@@ -658,6 +696,23 @@ export default function Borrowings() {
                     <td>{item.quantity} unit</td>
                     <td>
                       <StatusBadge status={item.status} />
+                      {item.overdueNotificationStatus && (
+                        <div style={{ marginTop: '0.25rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.625rem',
+                              fontWeight: 700,
+                              color: item.overdueNotificationStatus === 'SENT' ? '#15803D' : '#0369A1',
+                              backgroundColor: item.overdueNotificationStatus === 'SENT' ? '#DCFCE7' : '#E0F2FE',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: 'var(--radius-sm)',
+                              display: 'inline-block'
+                            }}
+                          >
+                            {item.overdueNotificationStatus === 'SENT' ? 'WA Terkirim' : 'WA Disimulasikan'}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td>
                       <strong>{item.dueDate}</strong>

@@ -122,6 +122,9 @@ export const mapBorrowingFromDb = (dbBorrow) => {
     returnNotes: dbBorrow.return_notes || null,
     checklist: dbBorrow.checklist || [],
     receiptCode: dbBorrow.receipt_code || null,
+    dueAt: dbBorrow.due_at || null,
+    overdueNotifiedAt: dbBorrow.overdue_notified_at || null,
+    overdueNotificationStatus: dbBorrow.overdue_notification_status || null,
     createdAt: dbBorrow.created_at
   };
 };

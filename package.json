@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/verify_inventory_cases.cjs && node tests/verify_damaged_inspection.cjs"
+    "test": "node tests/verify_inventory_cases.cjs && node tests/verify_damaged_inspection.cjs && node tests/verify_whatsapp_notifications.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
