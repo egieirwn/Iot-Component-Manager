@@ -32,7 +32,7 @@ export default function Borrowings() {
   // Return Flow States: null | 'form' | 'receipt'
   const [selectedBorrowing, setSelectedBorrowing] = useState(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
-  const [returnCondition, setReturnCondition] = useState('Berfungsi'); // 'Berfungsi' | 'Rusak'
+  const [returnCondition, setReturnCondition] = useState('Baik'); // 'Baik' | 'Perlu Pengecekan' | 'Rusak'
   const [checklist, setChecklist] = useState({
     0: true,
     1: true,
@@ -76,7 +76,7 @@ export default function Borrowings() {
     };
     setSelectedBorrowing(borrowItem);
     setSelectedComponent(comp);
-    setReturnCondition('Berfungsi');
+    setReturnCondition('Baik');
     setChecklist({ 0: true, 1: true, 2: true, 3: true, 4: false });
     setReturnNotes('');
     setReturnReceipt(null);
@@ -140,36 +140,43 @@ export default function Borrowings() {
     const borrowerText = `${profile?.full_name || selectedBorrowing?.borrowerName || 'Akira Tomoe'} · NIM ${profile?.identity_number || selectedBorrowing?.nim || '2210511045'} · ${profile?.study_program || 'Teknik Informatika'} · Universitas`;
     const userEmail = user?.email || profile?.email || selectedBorrowing?.borrowerEmail || 'akira.tomoe@un.ac.id';
 
+    const isHoldCondition = returnReceipt.condition === 'Perlu Pengecekan' || returnReceipt.condition === 'Rusak';
+    const statusLabel = isHoldCondition ? (returnReceipt.condition === 'Rusak' ? 'Pemeriksaan Kerusakan' : 'Dalam Pemeriksaan') : 'Tersedia';
+    const statusBg = returnReceipt.condition === 'Rusak' ? '#FEE2E2' : returnReceipt.condition === 'Perlu Pengecekan' ? '#FEF3C7' : 'var(--status-available-badge)';
+    const statusColor = returnReceipt.condition === 'Rusak' ? '#991B1B' : returnReceipt.condition === 'Perlu Pengecekan' ? '#B45309' : '#FFFFFF';
+
     return (
       <div className="return-success-page" style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '3rem' }}>
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-            Pengembalian berhasil
+            Pengembalian berhasil dicatat
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9375rem' }}>
-            Komponen kini sudah kembali ke inventori kampus.
+            {isHoldCondition
+              ? 'Komponen telah dialihkan ke antrean inspeksi teknis laboratorium sebelum dapat digunakan kembali.'
+              : 'Komponen kini sudah kembali ke inventori kampus dan siap dipinjam kembali.'}
           </p>
         </div>
 
         <div className="card" style={{ padding: '2.5rem', boxShadow: 'var(--shadow-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h2 style={{ fontSize: '1.375rem', fontWeight: 800 }}>
-              Komponen dikembalikan berhasil
+              Bukti Pengembalian Komponen
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Status:</span>
               <span
                 style={{
-                  backgroundColor: 'var(--status-available-badge)',
-                  color: '#FFFFFF',
+                  backgroundColor: statusBg,
+                  color: statusColor,
                   padding: '0.25rem 0.75rem',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '0.75rem',
                   fontWeight: 700,
-                  letterSpacing: '0.05em'
+                  letterSpacing: '0.025em'
                 }}
               >
-                TERSEDIA
+                {statusLabel}
               </span>
             </div>
           </div>
@@ -210,8 +217,8 @@ export default function Borrowings() {
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
-                      backgroundColor: returnReceipt.condition === 'Rusak' ? '#FEE2E2' : 'var(--status-available-bg)',
-                      color: returnReceipt.condition === 'Rusak' ? '#991B1B' : 'var(--status-available-text)'
+                      backgroundColor: returnReceipt.condition === 'Rusak' ? '#FEE2E2' : returnReceipt.condition === 'Perlu Pengecekan' ? '#FEF3C7' : 'var(--status-available-bg)',
+                      color: returnReceipt.condition === 'Rusak' ? '#991B1B' : returnReceipt.condition === 'Perlu Pengecekan' ? '#B45309' : 'var(--status-available-text)'
                     }}
                   >
                     {returnReceipt.condition}
@@ -400,44 +407,87 @@ export default function Borrowings() {
               {/* Kondisi Umum Buttons */}
               <div>
                 <label style={{ display: 'block', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.625rem' }}>
-                  Kondisi umum
+                  Kondisi umum komponen
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem', marginBottom: '0.75rem' }}>
                   <button
                     type="button"
-                    onClick={() => setReturnCondition('Berfungsi')}
+                    onClick={() => setReturnCondition('Baik')}
                     style={{
-                      padding: '0.75rem',
+                      padding: '0.75rem 0.5rem',
                       borderRadius: 'var(--radius-md)',
-                      backgroundColor: returnCondition === 'Berfungsi' ? 'var(--color-primary)' : '#FFFFFF',
-                      color: returnCondition === 'Berfungsi' ? '#FFFFFF' : 'var(--color-text-main)',
-                      border: `1px solid ${returnCondition === 'Berfungsi' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      backgroundColor: returnCondition === 'Baik' ? 'var(--color-primary)' : '#FFFFFF',
+                      color: returnCondition === 'Baik' ? '#FFFFFF' : 'var(--color-text-main)',
+                      border: `1px solid ${returnCondition === 'Baik' ? 'var(--color-primary)' : 'var(--color-border)'}`,
                       fontWeight: 600,
-                      fontSize: '0.875rem',
+                      fontSize: '0.8125rem',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center'
                     }}
                   >
-                    Berfungsi
+                    Baik / Berfungsi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReturnCondition('Perlu Pengecekan')}
+                    style={{
+                      padding: '0.75rem 0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: returnCondition === 'Perlu Pengecekan' ? '#D97706' : '#FFFFFF',
+                      color: returnCondition === 'Perlu Pengecekan' ? '#FFFFFF' : 'var(--color-text-main)',
+                      border: `1px solid ${returnCondition === 'Perlu Pengecekan' ? '#D97706' : 'var(--color-border)'}`,
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center'
+                    }}
+                  >
+                    Perlu Pengecekan
                   </button>
                   <button
                     type="button"
                     onClick={() => setReturnCondition('Rusak')}
                     style={{
-                      padding: '0.75rem',
+                      padding: '0.75rem 0.5rem',
                       borderRadius: 'var(--radius-md)',
                       backgroundColor: returnCondition === 'Rusak' ? '#DC2626' : '#FFFFFF',
                       color: returnCondition === 'Rusak' ? '#FFFFFF' : 'var(--color-text-main)',
                       border: `1px solid ${returnCondition === 'Rusak' ? '#DC2626' : 'var(--color-border)'}`,
                       fontWeight: 600,
-                      fontSize: '0.875rem',
+                      fontSize: '0.8125rem',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center'
                     }}
                   >
                     Rusak
                   </button>
                 </div>
+
+                {returnCondition !== 'Baik' && (
+                  <div
+                    style={{
+                      backgroundColor: returnCondition === 'Rusak' ? '#FEF2F2' : '#FEF3C7',
+                      border: `1px solid ${returnCondition === 'Rusak' ? '#FECACA' : '#FDE68A'}`,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '0.75rem 1rem',
+                      fontSize: '0.8125rem',
+                      color: returnCondition === 'Rusak' ? '#991B1B' : '#B45309',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                    <span>
+                      {returnCondition === 'Perlu Pengecekan'
+                        ? 'Komponen akan masuk ke hold pemeriksaan teknis laboratorium dan tidak langsung tersedia untuk dipinjam kembali.'
+                        : 'Komponen tercatat rusak dan akan segera dilaporkan ke admin lab untuk diproses dan diperbaiki.'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Catatan Pengembalian (Opsional) */}
@@ -674,13 +724,17 @@ export default function Borrowings() {
                           fontSize: '0.75rem',
                           fontWeight: 600,
                           backgroundColor:
-                            item.returnCondition === 'Baik' || item.returnCondition === 'Berfungsi'
-                              ? 'var(--status-available-bg)'
-                              : '#FEF3C7',
+                            item.returnCondition === 'Rusak'
+                              ? '#FEE2E2'
+                              : item.returnCondition === 'Perlu Pengecekan'
+                              ? '#FEF3C7'
+                              : 'var(--status-available-bg)',
                           color:
-                            item.returnCondition === 'Baik' || item.returnCondition === 'Berfungsi'
-                              ? 'var(--status-available-text)'
-                              : '#B45309'
+                            item.returnCondition === 'Rusak'
+                              ? '#991B1B'
+                              : item.returnCondition === 'Perlu Pengecekan'
+                              ? '#B45309'
+                              : 'var(--status-available-text)'
                         }}
                       >
                         {item.returnCondition || 'Baik'}

@@ -311,6 +311,7 @@ export const processReturn = async ({ borrowId, condition = 'Baik', notes = '', 
           receiptCode: rpcData.receipt_code,
           returnDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
         },
+        inspectionId: rpcData.inspection_id || null,
         updatedComponents,
         updatedBorrowings
       };
@@ -460,4 +461,80 @@ export const deleteComponent = async (id) => {
   }
 
   return { success: true, id };
+};
+
+// ==========================================================================
+// Admin Component Inspection Management
+// ==========================================================================
+
+/**
+ * Mengambil daftar catatan inspeksi komponen (Admin & Staf Lab)
+ */
+export const fetchInspections = async (statusFilter = 'all') => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    let query = supabase
+      .from('component_inspections')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (statusFilter && statusFilter !== 'all') {
+      query = query.eq('inspection_status', statusFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching component inspections:', error);
+      throw error;
+    }
+
+    return (data || []).map((item) => ({
+      id: item.id,
+      borrowingId: item.borrowing_id,
+      componentId: item.component_id,
+      componentName: item.component_name,
+      componentCode: item.component_code,
+      componentImage: item.component_image || '/assets/images/dht22.png',
+      borrowerName: item.borrower_name,
+      borrowerEmail: item.borrower_email,
+      borrowerNim: item.borrower_nim,
+      quantity: item.quantity,
+      reportedCondition: item.reported_condition,
+      damageNotes: item.damage_notes,
+      inspectionStatus: item.inspection_status,
+      decision: item.decision,
+      decisionNotes: item.decision_notes,
+      inspectedBy: item.inspected_by,
+      inspectedAt: item.inspected_at,
+      createdAt: item.created_at
+    }));
+  } catch (err) {
+    console.error('fetchInspections exception:', err);
+    throw err;
+  }
+};
+
+/**
+ * Memberikan keputusan hasil inspeksi komponen (Khusus Admin)
+ * Decision: 'usable' | 'under_repair' | 'retired'
+ */
+export const resolveInspection = async ({ inspectionId, decision, notes = '' }) => {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase belum dikonfigurasi.');
+  }
+
+  const { data, error } = await supabase.rpc('rpc_resolve_inspection', {
+    p_inspection_id: inspectionId,
+    p_decision: decision,
+    p_notes: notes.trim()
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal memproses keputusan inspeksi.');
+  }
+
+  return data;
 };

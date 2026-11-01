@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Cpu, ClipboardList, PackagePlus, UserCheck, Shield } from 'lucide-react';
+import { LayoutDashboard, Cpu, ClipboardList, PackagePlus, ClipboardCheck, UserCheck, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
@@ -65,6 +65,14 @@ export default function Sidebar() {
             >
               <PackagePlus size={20} />
               <span>Kelola Inventaris</span>
+            </NavLink>
+
+            <NavLink
+              to="/admin/inspections"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <ClipboardCheck size={20} />
+              <span>Inspeksi Komponen</span>
             </NavLink>
 
             <NavLink

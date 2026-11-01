@@ -23,6 +23,7 @@ import Borrowings from './pages/Borrowings';
 import Profile from './pages/Profile';
 import AdminInventory from './pages/admin/AdminInventory';
 import RoleRequests from './pages/admin/RoleRequests';
+import ComponentInspections from './pages/admin/ComponentInspections';
 
 export default function App() {
   return (
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inspections"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <ComponentInspections />
             </ProtectedRoute>
           }
         />

@@ -92,6 +92,33 @@ CREATE INDEX IF NOT EXISTS idx_borrowings_user_id ON public.borrowings(user_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_component_id ON public.borrowings(component_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_status ON public.borrowings(status);
 
+-- Table: public.component_inspections (Damaged return reporting and Admin inspection)
+CREATE TABLE IF NOT EXISTS public.component_inspections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  borrowing_id TEXT REFERENCES public.borrowings(id) ON DELETE SET NULL,
+  component_id TEXT NOT NULL REFERENCES public.components(id) ON DELETE CASCADE,
+  component_name TEXT NOT NULL,
+  component_code TEXT,
+  component_image TEXT,
+  borrower_name TEXT,
+  borrower_email TEXT,
+  borrower_nim TEXT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  reported_condition TEXT NOT NULL,
+  damage_notes TEXT,
+  inspection_status TEXT NOT NULL DEFAULT 'pending_inspection',
+  decision TEXT,
+  decision_notes TEXT,
+  inspected_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  inspected_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.component_inspections(inspection_status);
+CREATE INDEX IF NOT EXISTS idx_inspections_component_id ON public.component_inspections(component_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_borrowing_id ON public.component_inspections(borrowing_id);
+
 -- ==============================================================================
 -- 5. TRIGGERS & FUNCTIONS
 -- ==============================================================================
@@ -631,6 +658,7 @@ DECLARE
   v_updated_borrowing RECORD;
   v_remaining_borrowed BIGINT := 0;
   v_new_status TEXT;
+  v_inspection_id UUID := NULL;
 BEGIN
   -- 1. Ambil transaksi peminjaman dengan FOR UPDATE lock
   SELECT * INTO v_borrow
@@ -706,11 +734,42 @@ BEGIN
     WHERE id = v_comp.id;
   END IF;
 
-  -- 8. Format waktu pengembalian dan nomor resi
+  -- 8. Jika kondisi Perlu Pengecekan atau Rusak, buat record di component_inspections
+  IF p_condition IN ('Perlu Pengecekan', 'Rusak') THEN
+    INSERT INTO public.component_inspections (
+      borrowing_id,
+      component_id,
+      component_name,
+      component_code,
+      component_image,
+      borrower_name,
+      borrower_email,
+      borrower_nim,
+      quantity,
+      reported_condition,
+      damage_notes,
+      inspection_status
+    ) VALUES (
+      p_borrow_id,
+      v_comp.id,
+      COALESCE(v_comp.name, v_borrow.component_name),
+      v_comp.code,
+      v_comp.image,
+      v_borrow.borrower_name,
+      v_borrow.borrower_email,
+      v_borrow.nim,
+      v_borrow.quantity,
+      p_condition,
+      p_notes,
+      'pending_inspection'
+    ) RETURNING id INTO v_inspection_id;
+  END IF;
+
+  -- 9. Format waktu pengembalian dan nomor resi
   v_return_date_str := to_char(now(), 'DD Mon YYYY - HH24:MI') || ' WIB';
   v_receipt_code := 'RT-' || to_char(now(), 'YYYY') || '-' || lpad(floor(random() * 9000 + 1000)::text, 4, '0');
 
-  -- 9. Update transaksi peminjaman
+  -- 10. Update transaksi peminjaman
   UPDATE public.borrowings
   SET
     status = 'DIKEMBALIKAN',
@@ -728,9 +787,133 @@ BEGIN
     'borrowing', to_jsonb(v_updated_borrowing),
     'receipt_code', v_receipt_code,
     'new_stock', v_new_stock,
-    'status', v_new_status
+    'new_maintenance_stock', v_new_maint,
+    'new_damaged_stock', v_new_dmg,
+    'status', v_new_status,
+    'inspection_id', v_inspection_id
   );
 END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: rpc_resolve_inspection (Admin inspection decision)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.rpc_resolve_inspection(
+  p_inspection_id UUID,
+  p_decision TEXT, -- 'usable' | 'under_repair' | 'retired'
+  p_notes TEXT DEFAULT ''
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_insp RECORD;
+  v_comp RECORD;
+  v_new_stock INTEGER;
+  v_new_maint INTEGER;
+  v_new_dmg INTEGER;
+  v_new_total INTEGER;
+  v_active_borrowed BIGINT := 0;
+  v_new_status TEXT;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Akses ditolak: Hanya Admin yang dapat memproses keputusan inspeksi.';
+  END IF;
+
+  IF p_decision NOT IN ('usable', 'under_repair', 'retired') THEN
+    RAISE EXCEPTION 'Keputusan inspeksi tidak valid. Pilih antara: usable, under_repair, atau retired.';
+  END IF;
+
+  SELECT * INTO v_insp
+  FROM public.component_inspections
+  WHERE id = p_inspection_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Catatan inspeksi tidak ditemukan.';
+  END IF;
+
+  SELECT * INTO v_comp
+  FROM public.components
+  WHERE id = v_insp.component_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Komponen terkait inspeksi ini tidak ditemukan.';
+  END IF;
+
+  v_new_stock := COALESCE(v_comp.stock, 0);
+  v_new_maint := COALESCE(v_comp.maintenance_stock, 0);
+  v_new_dmg := COALESCE(v_comp.damaged_stock, 0);
+  v_new_total := COALESCE(v_comp.total_stock, 0);
+
+  IF p_decision = 'usable' THEN
+    IF v_insp.reported_condition = 'Perlu Pengecekan' OR v_insp.inspection_status = 'under_repair' THEN
+      v_new_maint := GREATEST(0, v_new_maint - v_insp.quantity);
+    ELSE
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+    END IF;
+    v_new_stock := v_new_stock + v_insp.quantity;
+
+  ELSIF p_decision = 'under_repair' THEN
+    IF v_insp.reported_condition = 'Rusak' AND v_insp.inspection_status = 'pending_inspection' THEN
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+      v_new_maint := v_new_maint + v_insp.quantity;
+    END IF;
+
+  ELSIF p_decision = 'retired' THEN
+    IF v_insp.reported_condition = 'Perlu Pengecekan' OR v_insp.inspection_status = 'under_repair' THEN
+      v_new_maint := GREATEST(0, v_new_maint - v_insp.quantity);
+    ELSE
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+    END IF;
+    v_new_total := GREATEST(0, v_new_total - v_insp.quantity);
+  END IF;
+
+  SELECT COALESCE(SUM(quantity), 0) INTO v_active_borrowed
+  FROM public.borrowings
+  WHERE component_id = v_comp.id
+    AND status = 'DIPINJAM';
+
+  v_new_status := public.calculate_component_status(
+    v_new_total,
+    v_new_stock,
+    v_active_borrowed,
+    v_new_maint,
+    v_new_dmg,
+    v_comp.is_active
+  );
+
+  UPDATE public.components
+  SET
+    stock = v_new_stock,
+    total_stock = v_new_total,
+    maintenance_stock = v_new_maint,
+    damaged_stock = v_new_dmg,
+    status = v_new_status,
+    updated_at = timezone('utc'::text, now())
+  WHERE id = v_comp.id;
+
+  UPDATE public.component_inspections
+  SET
+    inspection_status = CASE WHEN p_decision = 'under_repair' THEN 'under_repair' ELSE 'inspected' END,
+    decision = p_decision,
+    decision_notes = p_notes,
+    inspected_by = auth.uid(),
+    inspected_at = timezone('utc'::text, now()),
+    updated_at = timezone('utc'::text, now())
+  WHERE id = p_inspection_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'decision', p_decision,
+    'component_id', v_comp.id,
+    'new_stock', v_new_stock,
+    'new_total_stock', v_new_total,
+    'new_maintenance_stock', v_new_maint,
+    'new_damaged_stock', v_new_dmg,
+    'new_status', v_new_status
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ------------------------------------------------------------------------------
