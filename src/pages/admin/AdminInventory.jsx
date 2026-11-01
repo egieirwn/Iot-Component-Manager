@@ -22,6 +22,7 @@ import {
   deleteComponent
 } from '../../services/componentService';
 import { useToast } from '../../components/common/Toast';
+import StatusBadge from '../../components/components/StatusBadge';
 
 const CATEGORIES = ['Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris'];
 const CONDITIONS = ['Baik', 'Perlu Pengecekan', 'Rusak'];

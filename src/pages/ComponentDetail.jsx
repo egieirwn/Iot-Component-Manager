@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Bell, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Bell, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import StatusBadge from '../components/components/StatusBadge';
 import { useToast } from '../components/common/Toast';
 import { fetchComponentById } from '../services/componentService';
@@ -53,7 +53,8 @@ export default function ComponentDetail() {
     );
   }
 
-  const isAvailable = component.status === 'TERSEDIA' && component.stock > 0;
+  // Komponen siap dipinjam jika ada sisa stok (> 0) dan aktif
+  const canBorrow = (component.stock || 0) > 0 && component.isActive !== false;
 
   return (
     <div className="component-detail-page">
@@ -226,24 +227,49 @@ export default function ComponentDetail() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Stok</span>
-                <strong>{component.stock} unit</strong>
+                <span style={{ color: 'var(--color-text-muted)' }}>Stok Tersedia</span>
+                <strong style={{ color: canBorrow ? 'var(--color-primary)' : '#DC2626' }}>
+                  {component.stock} unit
+                </strong>
               </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Kondisi</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>Total Stok Fisik</span>
+                <strong>{component.totalStock || component.stock} unit</strong>
+              </div>
+
+              {component.borrowedStock > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>Sedang Dipinjam</span>
+                  <strong style={{ color: '#D97706' }}>{component.borrowedStock} unit</strong>
+                </div>
+              )}
+
+              {(component.maintenanceStock > 0 || component.damagedStock > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>Pemeriksaan / Rusak</span>
+                  <strong style={{ color: '#B45309' }}>
+                    {(component.maintenanceStock || 0) + (component.damagedStock || 0)} unit
+                  </strong>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem' }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>Kondisi Fisik</span>
                 <strong>{component.condition}</strong>
               </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9375rem' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Status</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>Status Ketersediaan</span>
                 <StatusBadge status={component.status} />
               </div>
             </div>
 
-            {isAvailable ? (
+            {canBorrow ? (
               <Link
                 to={`/borrow/${component.id}`}
                 className="btn-primary"
-                style={{ width: '100%', textAlign: 'center' }}
+                style={{ width: '100%', textAlign: 'center', display: 'block' }}
               >
                 Ajukan Peminjaman
               </Link>
@@ -259,8 +285,8 @@ export default function ComponentDetail() {
             )}
           </div>
 
-          {/* Borrow Status Alert Info */}
-          {!isAvailable && (
+          {/* Borrow Status Alert Info jika stok habis */}
+          {!canBorrow && (
             <div
               style={{
                 backgroundColor: 'var(--status-borrowed-bg)',
@@ -270,17 +296,41 @@ export default function ComponentDetail() {
               }}
             >
               <div style={{ marginBottom: '0.5rem' }}>
-                <StatusBadge status="DIPINJAM" />
+                <StatusBadge status={component.status} />
               </div>
               <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--status-borrowed-text)', marginBottom: '0.375rem' }}>
-                Saat ini dipinjam oleh {component.borrowerInfo?.borrower || 'peminjam lain'}, jatuh tempo {component.borrowerInfo?.dueDate || 'segera'}
+                {component.status === 'Dalam Pemeriksaan'
+                  ? 'Komponen Sedang Dalam Pemeliharaan / Perbaikan'
+                  : component.borrowedStock > 0
+                  ? `Seluruh ${component.totalStock} unit sedang aktif dipinjam`
+                  : 'Komponen Tidak Tersedia untuk Dipinjam'}
               </h4>
               <p style={{ fontSize: '0.8125rem', color: '#9A3412', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                {component.borrowerInfo?.notes || 'Belum tersedia untuk dipinjam. Jelajahi komponen lain yang tersedia.'}
+                {component.borrowerInfo?.notes || 'Saat ini tidak ada unit yang dapat dipinjam. Silakan periksa kembali saat unit telah dikembalikan ke lab.'}
               </p>
               <small style={{ color: '#9A3412' }}>
-                Belum bisa diajukan peminjaman sampai komponen dikembalikan ke lab.
+                Pengajuan baru dibuka segera setelah inventaris dikembalikan atau diperbarui oleh laboran.
               </small>
+            </div>
+          )}
+
+          {/* Banner Informasi Stok Parsial */}
+          {canBorrow && component.borrowedStock > 0 && (
+            <div
+              style={{
+                backgroundColor: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>
+                <Info size={16} color="#1D4ED8" />
+                <strong style={{ fontSize: '0.875rem', color: '#1E40AF' }}>Stok Parsial Tersedia</strong>
+              </div>
+              <p style={{ fontSize: '0.8125rem', color: '#1E3A8A', margin: 0, lineHeight: 1.5 }}>
+                Sebanyak {component.borrowedStock} unit sedang dipinjam mahasiswa lain. Masih tersisa <strong>{component.stock} unit</strong> yang siap Anda pinjam hari ini.
+              </p>
             </div>
           )}
         </div>

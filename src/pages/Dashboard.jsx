@@ -88,7 +88,8 @@ export default function Dashboard() {
 
   const activeBorrowings = borrowings.filter((b) => b.status === 'DIPINJAM');
   const activeLoanCount = activeBorrowings.length;
-  const availableCount = components.filter((c) => c.status === 'TERSEDIA').length;
+  // Komponen tersedia adalah seluruh jenis komponen yang memiliki stok siap pinjam (> 0)
+  const availableCount = components.filter((c) => (c.stock || 0) > 0 && c.isActive !== false).length;
   const totalStockUnits = components.reduce((acc, curr) => acc + (curr.stock || 0), 0);
 
   // Ambil nama depan dari profil terautentikasi

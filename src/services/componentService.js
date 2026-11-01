@@ -2,23 +2,89 @@
 // Supabase PostgreSQL adalah Single Source of Truth untuk seluruh data inventaris dan transaksi.
 // Tidak ada fallback silent ke localStorage untuk data inventaris.
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 
 // Helper mapper: Supabase DB snake_case -> React Component camelCase
+/**
+ * Menghitung status ketersediaan komponen secara konsisten berdasarkan kuantitas stok:
+ * - 'Tersedia': Unit tersedia dan tidak ada yang sedang dipinjam (available > 0, borrowed == 0)
+ * - 'Sebagian Dipinjam': Sebagian unit dipinjam, namun stok tersedia masih ada (available > 0, borrowed > 0)
+ * - 'Sedang Dipinjam': Seluruh unit yang dapat dipakai sedang dipinjam (available == 0, borrowed > 0)
+ * - 'Dalam Pemeriksaan': Unit tidak tersedia karena dalam perbaikan/pemeriksaan (available == 0, borrowed == 0, maint > 0 || dmg > 0)
+ * - 'Tidak Tersedia': Tidak ada unit yang tersedia (available == 0, borrowed == 0, maint == 0, dmg == 0, atau isActive == false)
+ */
+export const calculateAvailabilityStatus = ({
+  stock = 0,
+  totalStock = 0,
+  borrowedStock = 0,
+  maintenanceStock = 0,
+  damagedStock = 0,
+  isActive = true
+}) => {
+  if (isActive === false) {
+    return 'Tidak Tersedia';
+  }
+
+  const available = Number(stock) || 0;
+  const borrowed = Number(borrowedStock) || 0;
+  const maint = Number(maintenanceStock) || 0;
+  const dmg = Number(damagedStock) || 0;
+
+  if (available > 0) {
+    if (borrowed > 0) {
+      return 'Sebagian Dipinjam';
+    }
+    return 'Tersedia';
+  }
+
+  // available === 0
+  if (borrowed > 0) {
+    return 'Sedang Dipinjam';
+  }
+
+  if (maint > 0 || dmg > 0) {
+    return 'Dalam Pemeriksaan';
+  }
+
+  return 'Tidak Tersedia';
+};
+
 export const mapComponentFromDb = (dbComp) => {
   if (!dbComp) return null;
+
+  const stock = Number(dbComp.stock) || 0;
+  const totalStock = Number(dbComp.total_stock) || 0;
+  const maintenanceStock = Number(dbComp.maintenance_stock) || 0;
+  const damagedStock = Number(dbComp.damaged_stock) || 0;
+  const isActive = dbComp.is_active !== false;
+
+  // Invariant relasional: totalStock = availableStock + borrowedStock + maintenanceStock + damagedStock
+  // Sehingga borrowedStock = max(0, totalStock - availableStock - maintenanceStock - damagedStock)
+  const borrowedStock = Math.max(0, totalStock - stock - maintenanceStock - damagedStock);
+
+  // Hitung status ketersediaan yang selalu konsisten dan sinkron
+  const status = calculateAvailabilityStatus({
+    stock,
+    totalStock,
+    borrowedStock,
+    maintenanceStock,
+    damagedStock,
+    isActive
+  });
+
   return {
     id: dbComp.id,
     code: dbComp.code,
     name: dbComp.name,
     category: dbComp.category,
-    stock: Number(dbComp.stock) || 0,
-    maintenanceStock: Number(dbComp.maintenance_stock) || 0,
-    damagedStock: Number(dbComp.damaged_stock) || 0,
-    totalStock: Number(dbComp.total_stock) || 0,
+    stock, // Stok tersedia untuk dipinjam
+    maintenanceStock,
+    damagedStock,
+    totalStock, // Total fisik milik lab
+    borrowedStock, // Unit yang sedang dipinjam
     condition: dbComp.condition || 'Baik',
-    status: dbComp.status || (dbComp.stock > 0 ? 'TERSEDIA' : 'DIPINJAM'),
-    isActive: dbComp.is_active !== false,
+    status,
+    isActive,
     image: dbComp.image || '/assets/images/arduino.png',
     description: dbComp.description || '',
     tags: Array.isArray(dbComp.tags) ? dbComp.tags : [],

@@ -3,7 +3,15 @@ import { Link } from 'react-router-dom';
 import StatusBadge from './StatusBadge';
 
 export default function ComponentItem({ component, onBorrow }) {
-  const isAvailable = component.status?.toUpperCase() === 'TERSEDIA';
+  // Komponen dapat dipinjam jika terdapat sisa stok tersedia (> 0) dan komponen berstatus aktif
+  const canBorrow = (component.stock || 0) > 0 && component.isActive !== false;
+
+  const getButtonLabel = () => {
+    if (canBorrow) return 'Pinjam Komponen';
+    if (component.status === 'Dalam Pemeriksaan') return 'Dalam Pemeriksaan';
+    if (component.status === 'Tidak Tersedia' || !component.isActive) return 'Tidak Tersedia';
+    return 'Sedang Dipinjam';
+  };
 
   return (
     <article className="component-card">
@@ -19,19 +27,24 @@ export default function ComponentItem({ component, onBorrow }) {
         <p className="category">{component.category}</p>
 
         <div className="component-card-footer" style={{ marginBottom: '0.75rem' }}>
-          <span className="stock-text">Stok {component.stock} unit</span>
+          <span className="stock-text">
+            Stok {component.stock} unit
+            {component.totalStock > component.stock
+              ? ` (Total ${component.totalStock})`
+              : ''}
+          </span>
           <StatusBadge status={component.status} />
         </div>
 
-        {/* Tombol Aksi Peminjaman (Target 2) */}
+        {/* Tombol Aksi Peminjaman */}
         <button
           type="button"
-          className={isAvailable ? "btn-primary" : "btn-outline"}
-          disabled={!isAvailable}
+          className={canBorrow ? "btn-primary" : "btn-outline"}
+          disabled={!canBorrow}
           onClick={onBorrow}
           style={{ width: '100%', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
         >
-          {isAvailable ? 'Pinjam Komponen' : 'Sedang Dipinjam'}
+          {getButtonLabel()}
         </button>
       </div>
     </article>
