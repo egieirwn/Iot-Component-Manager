@@ -38,7 +38,14 @@ export default function Components() {
   }, [loadData]);
 
   const categories = ['Semua', 'Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris'];
-  const statuses = ['Semua', 'TERSEDIA', 'DIPINJAM'];
+  const statuses = [
+    'Semua',
+    'Tersedia',
+    'Sebagian Dipinjam',
+    'Sedang Dipinjam',
+    'Dalam Pemeriksaan',
+    'Tidak Tersedia'
+  ];
 
   const filteredComponents = components.filter((comp) => {
     const query = globalSearchTerm.toLowerCase().trim();
@@ -53,8 +60,25 @@ export default function Components() {
     const matchesCategory =
       selectedCategory === 'Semua' || comp.category === selectedCategory;
 
-    const matchesStatus =
-      selectedStatus === 'Semua' || comp.status === selectedStatus;
+    let matchesStatus = true;
+    if (selectedStatus !== 'Semua') {
+      const selUpper = selectedStatus.toUpperCase();
+      const compUpper = (comp.status || '').toUpperCase();
+
+      if (selUpper === 'TERSEDIA') {
+        matchesStatus = compUpper === 'TERSEDIA';
+      } else if (selUpper === 'SEBAGIAN DIPINJAM') {
+        matchesStatus = compUpper === 'SEBAGIAN DIPINJAM';
+      } else if (selUpper === 'SEDANG DIPINJAM' || selUpper === 'DIPINJAM') {
+        matchesStatus = compUpper === 'SEDANG DIPINJAM' || compUpper === 'DIPINJAM';
+      } else if (selUpper === 'DALAM PEMERIKSAAN') {
+        matchesStatus = compUpper === 'DALAM PEMERIKSAAN' || compUpper === 'MAINTENANCE';
+      } else if (selUpper === 'TIDAK TERSEDIA') {
+        matchesStatus = compUpper === 'TIDAK TERSEDIA' || compUpper === 'HABIS' || comp.isActive === false;
+      } else {
+        matchesStatus = compUpper === selUpper;
+      }
+    }
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -165,59 +189,69 @@ export default function Components() {
         </div>
       )}
 
-      {/* 1. Loading State (Skeleton UX) */}
-      {isLoading && <ComponentSkeleton count={6} />}
-
-      {/* 2. Error State dengan Tombol Coba Lagi */}
-      {!isLoading && error && (
+      {/* Error State dengan Tombol Coba Lagi */}
+      {error && (
         <div
           className="card"
           style={{
             textAlign: 'center',
-            padding: '3rem 2rem',
-            border: '1px dashed #FCA5A5',
-            backgroundColor: '#FEF2F2'
+            padding: '3rem 1.5rem',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA'
           }}
         >
-          <AlertTriangle size={36} color="#DC2626" style={{ margin: '0 auto 1rem' }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#991B1B', marginBottom: '0.5rem' }}>
-            {error}
+          <AlertTriangle size={48} color="#DC2626" style={{ margin: '0 auto 1rem' }} />
+          <h3 style={{ color: '#991B1B', fontWeight: 700, marginBottom: '0.5rem' }}>
+            Gagal Memuat Katalog Komponen
           </h3>
-          <p style={{ color: '#7F1D1D', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            Terjadi kendala saat menghubungkan ke sumber data inventaris.
-          </p>
+          <p style={{ color: '#B91C1C', marginBottom: '1.5rem' }}>{error}</p>
           <button
             type="button"
-            className="btn-primary"
             onClick={loadData}
+            className="btn-primary"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <RefreshCw size={16} /> Coba lagi ↻
+            <RefreshCw size={16} /> Coba Lagi
           </button>
         </div>
       )}
 
-      {/* 3. Empty State saat filter tidak menemukan hasil */}
+      {/* Loading Skeleton Grid */}
+      {isLoading && (
+        <div className="component-grid">
+          {[...Array(6)].map((_, i) => (
+            <ComponentSkeleton key={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
       {!isLoading && !error && filteredComponents.length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
-          <SearchX size={44} color="var(--color-text-muted)" style={{ margin: '0 auto 1rem' }} />
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Yah, komponen tidak ditemukan 🔍
+        <div
+          className="card"
+          style={{
+            textAlign: 'center',
+            padding: '4rem 1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <SearchX size={56} color="var(--color-text-muted)" style={{ marginBottom: '1rem' }} />
+          <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.5rem' }}>
+            Komponen tidak ditemukan
           </h3>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            Tidak ada komponen yang cocok dengan kata kunci <em>"{globalSearchTerm}"</em> atau filter kategori yang dipilih.
+          <p style={{ color: 'var(--color-text-secondary)', maxWidth: '400px', marginBottom: '1.5rem' }}>
+            Tidak ada komponen yang cocok dengan kata kunci &quot;{globalSearchTerm}&quot; atau filter yang Anda pilih.
           </p>
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={handleResetFilter}
-          >
-            Reset Pencarian &amp; Filter
+          <button type="button" onClick={handleResetFilter} className="btn-outline">
+            Reset Semua Filter
           </button>
         </div>
       )}
 
-      {/* 4. Grid Komponen Dinamis */}
+      {/* Component Grid */}
       {!isLoading && !error && filteredComponents.length > 0 && (
         <div className="component-grid">
           {filteredComponents.map((comp) => (
@@ -230,7 +264,7 @@ export default function Components() {
         </div>
       )}
 
-      {/* Render Modal Pop-Up */}
+      {/* Modal Peminjaman Cepat */}
       {selectedComponentForBorrow && (
         <BorrowModal
           component={selectedComponentForBorrow}

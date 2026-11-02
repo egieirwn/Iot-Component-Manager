@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Cpu, ClipboardList, PackagePlus, UserCheck, Shield } from 'lucide-react';
+import { LayoutDashboard, Cpu, ClipboardList, PackagePlus, ClipboardCheck, UserCheck, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
   const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
+  const isSuperadmin = profile?.role === 'superadmin';
 
   return (
     <aside className="sidebar" aria-label="Bilah navigasi utama">
@@ -39,10 +39,10 @@ export default function Sidebar() {
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
           <ClipboardList size={20} />
-          <span>{isAdmin || profile?.role === 'dosen' ? 'Riwayat Peminjaman' : 'Peminjaman Saya'}</span>
+          <span>{isSuperadmin || profile?.role === 'dosen' ? 'Riwayat Peminjaman' : 'Peminjaman Saya'}</span>
         </NavLink>
 
-        {isAdmin && (
+        {isSuperadmin && (
           <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
             <span
               style={{
@@ -56,7 +56,7 @@ export default function Sidebar() {
                 marginBottom: '0.5rem'
               }}
             >
-              Menu Administrator
+              Menu Superadmin
             </span>
 
             <NavLink
@@ -65,6 +65,14 @@ export default function Sidebar() {
             >
               <PackagePlus size={20} />
               <span>Kelola Inventaris</span>
+            </NavLink>
+
+            <NavLink
+              to="/admin/inspections"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <ClipboardCheck size={20} />
+              <span>Inspeksi Komponen</span>
             </NavLink>
 
             <NavLink

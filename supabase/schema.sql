@@ -10,13 +10,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL DEFAULT '',
-  role TEXT NOT NULL DEFAULT 'mahasiswa' CHECK (role IN ('mahasiswa', 'dosen', 'admin')),
-  requested_role TEXT CHECK (requested_role IN ('mahasiswa', 'dosen', 'admin')),
+  role TEXT NOT NULL DEFAULT 'mahasiswa' CHECK (role IN ('mahasiswa', 'dosen', 'superadmin')),
+  requested_role TEXT CHECK (requested_role IN ('none', 'dosen')),
   role_request_status TEXT NOT NULL DEFAULT 'none' CHECK (role_request_status IN ('none', 'pending', 'approved', 'rejected')),
   identity_number TEXT DEFAULT '', -- NIM untuk mahasiswa, NIP untuk dosen
   study_program TEXT DEFAULT '',   -- Program studi atau Jurusan
   faculty TEXT DEFAULT '',         -- Fakultas atau Unit
   phone TEXT DEFAULT '',           -- Nomor telepon WhatsApp/kontak
+  phone_number TEXT DEFAULT '',    -- Format nomor telepon E.164 (+62...)
+  whatsapp_notification_opt_in BOOLEAN NOT NULL DEFAULT TRUE, -- Izin notifikasi WhatsApp
   avatar_url TEXT DEFAULT '',      -- URL foto profil
   profile_completed BOOLEAN NOT NULL DEFAULT FALSE,
   role_reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -41,7 +43,10 @@ CREATE TABLE IF NOT EXISTS public.components (
   damaged_stock INTEGER NOT NULL DEFAULT 0 CHECK (damaged_stock >= 0),
   total_stock INTEGER NOT NULL DEFAULT 0 CHECK (total_stock >= 0),
   condition TEXT NOT NULL DEFAULT 'Baik',
-  status TEXT NOT NULL DEFAULT 'TERSEDIA' CHECK (status IN ('TERSEDIA', 'DIPINJAM', 'HABIS', 'MAINTENANCE', 'NONAKTIF')),
+  status TEXT NOT NULL DEFAULT 'Tersedia' CHECK (status IN (
+    'Tersedia', 'Sebagian Dipinjam', 'Sedang Dipinjam', 'Tidak Tersedia', 'Dalam Pemeriksaan', 'Nonaktif',
+    'TERSEDIA', 'DIPINJAM', 'HABIS', 'MAINTENANCE', 'NONAKTIF'
+  )),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   image TEXT DEFAULT '',
   description TEXT DEFAULT '',
@@ -81,6 +86,9 @@ CREATE TABLE IF NOT EXISTS public.borrowings (
   return_notes TEXT DEFAULT NULL,
   checklist JSONB DEFAULT '[]'::jsonb,
   receipt_code TEXT DEFAULT NULL,
+  due_at TIMESTAMPTZ DEFAULT NULL,
+  overdue_notified_at TIMESTAMPTZ DEFAULT NULL,
+  overdue_notification_status TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -88,6 +96,52 @@ CREATE TABLE IF NOT EXISTS public.borrowings (
 CREATE INDEX IF NOT EXISTS idx_borrowings_user_id ON public.borrowings(user_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_component_id ON public.borrowings(component_id);
 CREATE INDEX IF NOT EXISTS idx_borrowings_status ON public.borrowings(status);
+CREATE INDEX IF NOT EXISTS idx_borrowings_due_at ON public.borrowings(due_at);
+CREATE INDEX IF NOT EXISTS idx_borrowings_overdue_notified_at ON public.borrowings(overdue_notified_at);
+
+-- Table: public.component_inspections (Damaged return reporting and Admin inspection)
+CREATE TABLE IF NOT EXISTS public.component_inspections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  borrowing_id TEXT REFERENCES public.borrowings(id) ON DELETE SET NULL,
+  component_id TEXT NOT NULL REFERENCES public.components(id) ON DELETE CASCADE,
+  component_name TEXT NOT NULL,
+  component_code TEXT,
+  component_image TEXT,
+  borrower_name TEXT,
+  borrower_email TEXT,
+  borrower_nim TEXT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  reported_condition TEXT NOT NULL,
+  damage_notes TEXT,
+  inspection_status TEXT NOT NULL DEFAULT 'pending_inspection',
+  decision TEXT,
+  decision_notes TEXT,
+  inspected_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  inspected_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.component_inspections(inspection_status);
+CREATE INDEX IF NOT EXISTS idx_inspections_component_id ON public.component_inspections(component_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_borrowing_id ON public.component_inspections(borrowing_id);
+
+-- Table: public.notification_logs (WhatsApp overdue notification dispatch logs)
+CREATE TABLE IF NOT EXISTS public.notification_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  borrowing_id TEXT REFERENCES public.borrowings(id) ON DELETE CASCADE,
+  recipient_phone TEXT NOT NULL,
+  recipient_name TEXT,
+  provider TEXT NOT NULL DEFAULT 'whatsapp_business',
+  template_name TEXT DEFAULT 'overdue_borrowing_reminder',
+  status TEXT NOT NULL,
+  error_message TEXT,
+  response_payload JSONB DEFAULT '{}'::jsonb,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_logs_borrowing_id ON public.notification_logs(borrowing_id);
+CREATE INDEX IF NOT EXISTS idx_notification_logs_sent_at ON public.notification_logs(sent_at);
 
 -- ==============================================================================
 -- 5. TRIGGERS & FUNCTIONS
@@ -182,22 +236,22 @@ BEGIN
   IF auth.uid() IS NOT NULL THEN
     SELECT role INTO caller_role FROM public.profiles WHERE id = auth.uid();
 
-    -- Jika bukan admin
-    IF (caller_role IS DISTINCT FROM 'admin') THEN
+    -- Jika bukan superadmin
+    IF (caller_role IS DISTINCT FROM 'superadmin') THEN
       -- 1. Pengguna biasa TIDAK PERNAH boleh mengubah role akun secara langsung
       IF (NEW.role IS DISTINCT FROM OLD.role) THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat mengubah role akun.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat mengubah role akun.';
       END IF;
 
       -- 2. Pengguna biasa TIDAK BOLEH menyetujui pengajuannya sendiri (menjadi 'approved')
       IF (NEW.role_request_status = 'approved' AND OLD.role_request_status IS DISTINCT FROM 'approved') THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat menyetujui verifikasi role.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat menyetujui verifikasi role.';
       END IF;
 
       -- 3. Pengguna biasa TIDAK BOLEH memanipulasi kolom audit review
       IF (NEW.role_reviewed_by IS DISTINCT FROM OLD.role_reviewed_by) OR
          (NEW.role_reviewed_at IS DISTINCT FROM OLD.role_reviewed_at) THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat mengisi metadata peninjauan.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat mengisi metadata peninjauan.';
       END IF;
 
       -- 4. Pengguna biasa hanya boleh mengajukan ulang dari 'none' atau 'rejected' ke 'pending' dengan requested_role = 'dosen'
@@ -248,12 +302,25 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.components ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.borrowings ENABLE ROW LEVEL SECURITY;
 
--- Helper function: cek apakah user adalah admin
-CREATE OR REPLACE FUNCTION public.is_admin()
+-- Helper functions: verifikasi role superadmin dan dosen
+CREATE OR REPLACE FUNCTION public.is_superadmin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = 'admin'
+    WHERE id = auth.uid() AND role = 'superadmin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT public.is_superadmin();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.is_dosen()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'dosen'
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
@@ -273,39 +340,39 @@ CREATE POLICY "Users can insert own initial profile"
     AND role = 'mahasiswa'
   );
 
--- Pengguna hanya dapat memperbarui profil miliknya sendiri, atau Admin dapat memperbarui semua
+-- Pengguna hanya dapat memperbarui profil miliknya sendiri, atau Superadmin dapat memperbarui semua
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   TO authenticated
-  USING (auth.uid() = id OR public.is_admin())
-  WITH CHECK (auth.uid() = id OR public.is_admin());
+  USING (auth.uid() = id OR public.is_superadmin())
+  WITH CHECK (auth.uid() = id OR public.is_superadmin());
 
 -- B. COMPONENTS POLICIES
--- Mahasiswa & Dosen hanya dapat melihat komponen aktif, Admin dapat melihat semua
+-- Mahasiswa & Dosen hanya dapat melihat komponen aktif, Superadmin dapat melihat semua
 CREATE POLICY "Active components are viewable by everyone, all by admin"
   ON public.components FOR SELECT
   TO anon, authenticated
-  USING (is_active = TRUE OR public.is_admin());
+  USING (is_active = TRUE OR public.is_superadmin());
 
--- Hanya Admin yang boleh INSERT, UPDATE, DELETE komponen secara langsung
+-- Hanya Superadmin yang boleh INSERT, UPDATE, DELETE komponen secara langsung
 CREATE POLICY "Admins can insert components"
   ON public.components FOR INSERT
   TO authenticated
-  WITH CHECK (public.is_admin());
+  WITH CHECK (public.is_superadmin());
 
 CREATE POLICY "Admins can update components"
   ON public.components FOR UPDATE
   TO authenticated
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
+  USING (public.is_superadmin())
+  WITH CHECK (public.is_superadmin());
 
 CREATE POLICY "Admins can delete components"
   ON public.components FOR DELETE
   TO authenticated
-  USING (public.is_admin());
+  USING (public.is_superadmin());
 
 -- C. BORROWINGS POLICIES
--- Pengguna hanya dapat melihat peminjaman miliknya sendiri, kecuali Admin atau Dosen dapat melihat semua
+-- Pengguna hanya dapat melihat peminjaman miliknya sendiri, kecuali Superadmin atau Dosen dapat melihat semua
 CREATE POLICY "Users can view own borrowings or staff can view all"
   ON public.borrowings FOR SELECT
   TO authenticated
@@ -313,7 +380,7 @@ CREATE POLICY "Users can view own borrowings or staff can view all"
     user_id = auth.uid() OR
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'dosen')
+      WHERE id = auth.uid() AND role IN ('superadmin', 'dosen')
     )
   );
 
@@ -334,10 +401,148 @@ CREATE POLICY "Users can update own borrowing or admin can update"
 -- Tidak dibuat policy DELETE untuk borrowings!
 
 -- ==============================================================================
--- 7. ATOMIC RPC TRANSACTIONS (Mencegah Race Conditions & Stok Negatif)
+-- ==============================================================================
+-- 6.5. HELPER FUNCTION & TRIGGERS UNTUK SINKRONISASI STATUS INVENTARIS
 -- ==============================================================================
 
--- A. Atomic Peminjaman Komponen
+-- 2. FUNGSI HELPER: MENGHITUNG STATUS KETERSEDIAAN KOMPONEN
+-- Aturan Status:
+-- - 'Tidak Tersedia': Jika is_active = false ATAU (available = 0 AND borrowed = 0 AND maint = 0 AND dmg = 0)
+-- - 'Tersedia': Jika available > 0 AND borrowed = 0
+-- - 'Sebagian Dipinjam': Jika available > 0 AND borrowed > 0
+-- - 'Sedang Dipinjam': Jika available = 0 AND borrowed > 0
+-- - 'Dalam Pemeriksaan': Jika available = 0 AND borrowed = 0 AND (maint > 0 OR dmg > 0)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.calculate_component_status(
+  p_total_stock INTEGER,
+  p_available_stock INTEGER,
+  p_borrowed_stock INTEGER,
+  p_maintenance_stock INTEGER,
+  p_damaged_stock INTEGER,
+  p_is_active BOOLEAN
+)
+RETURNS TEXT AS $$
+BEGIN
+  IF p_is_active IS FALSE THEN
+    RETURN 'Tidak Tersedia';
+  END IF;
+
+  IF COALESCE(p_available_stock, 0) > 0 THEN
+    IF COALESCE(p_borrowed_stock, 0) > 0 THEN
+      RETURN 'Sebagian Dipinjam';
+    ELSE
+      RETURN 'Tersedia';
+    END IF;
+  ELSE
+    -- Available stock == 0
+    IF COALESCE(p_borrowed_stock, 0) > 0 THEN
+      RETURN 'Sedang Dipinjam';
+    ELSIF (COALESCE(p_maintenance_stock, 0) > 0 OR COALESCE(p_damaged_stock, 0) > 0) THEN
+      RETURN 'Dalam Pemeriksaan';
+    ELSE
+      RETURN 'Tidak Tersedia';
+    END IF;
+  END IF;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- ------------------------------------------------------------------------------
+-- 3. TRIGGER PADA TABEL COMPONENTS: SINKRONISASI STATUS OTOMATIS
+-- Menghitung status berdasarkan sisa stok dan total peminjaman aktif saat ini
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sync_component_inventory_status()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_borrowed_count BIGINT := 0;
+BEGIN
+  -- Hitung unit yang sedang aktif dipinjam untuk komponen ini
+  SELECT COALESCE(SUM(quantity), 0)
+  INTO v_borrowed_count
+  FROM public.borrowings
+  WHERE component_id = NEW.id
+    AND status = 'DIPINJAM';
+
+  -- Jika status tidak diatur secara eksplisit ke 'Nonaktif', hitung status yang benar
+  IF NEW.is_active IS FALSE THEN
+    NEW.status := 'Tidak Tersedia';
+  ELSE
+    NEW.status := public.calculate_component_status(
+      NEW.total_stock,
+      NEW.stock,
+      v_borrowed_count,
+      NEW.maintenance_stock,
+      NEW.damaged_stock,
+      NEW.is_active
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_component_status ON public.components;
+CREATE TRIGGER trigger_sync_component_status
+  BEFORE INSERT OR UPDATE OF stock, total_stock, maintenance_stock, damaged_stock, is_active
+  ON public.components
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_component_inventory_status();
+
+-- ------------------------------------------------------------------------------
+-- 4. TRIGGER PADA TABEL BORROWINGS: SINKRONISASI STATUS KOMPONEN SETELAH TRANSAKSI
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.sync_component_status_from_borrowing()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_comp_id TEXT;
+  v_comp RECORD;
+  v_borrowed_count BIGINT := 0;
+  v_new_status TEXT;
+BEGIN
+  v_comp_id := COALESCE(NEW.component_id, OLD.component_id);
+
+  IF v_comp_id IS NOT NULL THEN
+    SELECT * INTO v_comp FROM public.components WHERE id = v_comp_id;
+
+    IF FOUND THEN
+      SELECT COALESCE(SUM(quantity), 0)
+      INTO v_borrowed_count
+      FROM public.borrowings
+      WHERE component_id = v_comp_id
+        AND status = 'DIPINJAM';
+
+      v_new_status := public.calculate_component_status(
+        v_comp.total_stock,
+        v_comp.stock,
+        v_borrowed_count,
+        v_comp.maintenance_stock,
+        v_comp.damaged_stock,
+        v_comp.is_active
+      );
+
+      UPDATE public.components
+      SET
+        status = v_new_status,
+        updated_at = timezone('utc'::text, now())
+      WHERE id = v_comp_id
+        AND status IS DISTINCT FROM v_new_status;
+    END IF;
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_borrowing_status_change ON public.borrowings;
+CREATE TRIGGER trigger_sync_borrowing_status_change
+  AFTER INSERT OR UPDATE OF status, quantity OR DELETE
+  ON public.borrowings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_component_status_from_borrowing();
+
+-- ------------------------------------------------------------------------------
+-- 5. PERBARUI ATOMIC RPC FUNCTION: rpc_borrow_component
+-- Menghitung status baru secara tepat ('Sebagian Dipinjam' vs 'Sedang Dipinjam')
+-- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.rpc_borrow_component(
   p_component_id TEXT,
   p_quantity INTEGER,
@@ -356,8 +561,10 @@ DECLARE
   v_new_status TEXT;
   v_borrow_id TEXT;
   v_new_borrowing RECORD;
+  v_current_borrowed INTEGER := 0;
+  v_total_borrowed INTEGER := 0;
 BEGIN
-  -- 0. Validasi autentikasi caller (Mencegah peminjaman anonim / unauthenticated)
+  -- 0. Validasi autentikasi caller (Mencegah peminjaman anonim)
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Access denied: You must be logged in to borrow components.';
   END IF;
@@ -378,7 +585,7 @@ BEGIN
   END IF;
 
   -- Validasi status keaktifan komponen
-  IF NOT v_comp.is_active OR v_comp.status = 'NONAKTIF' THEN
+  IF NOT v_comp.is_active OR v_comp.status IN ('NONAKTIF', 'Nonaktif', 'Tidak Tersedia') THEN
     RAISE EXCEPTION 'Komponen ini sedang dinonaktifkan oleh administrator dan tidak dapat dipinjam.';
   END IF;
 
@@ -386,15 +593,25 @@ BEGIN
     RAISE EXCEPTION 'Stok tidak mencukupi! Tersisa % unit, diminta % unit.', v_comp.stock, p_quantity;
   END IF;
 
-  -- 3. Hitung stok dan status baru
-  v_new_stock := v_comp.stock - p_quantity;
-  IF v_new_stock = 0 THEN
-    v_new_status := 'DIPINJAM';
-  ELSE
-    v_new_status := 'TERSEDIA';
-  END IF;
+  -- 3. Hitung jumlah peminjaman aktif saat ini ditambah peminjaman baru
+  SELECT COALESCE(SUM(quantity), 0) INTO v_current_borrowed
+  FROM public.borrowings
+  WHERE component_id = p_component_id AND status = 'DIPINJAM';
 
-  -- 4. Potong stok komponen
+  v_total_borrowed := v_current_borrowed + p_quantity;
+
+  -- 4. Hitung stok dan status baru yang akurat
+  v_new_stock := v_comp.stock - p_quantity;
+  v_new_status := public.calculate_component_status(
+    v_comp.total_stock,
+    v_new_stock,
+    v_total_borrowed,
+    v_comp.maintenance_stock,
+    v_comp.damaged_stock,
+    v_comp.is_active
+  );
+
+  -- 5. Potong stok komponen dan simpan status tersinkronisasi
   UPDATE public.components
   SET
     stock = v_new_stock,
@@ -402,10 +619,10 @@ BEGIN
     updated_at = timezone('utc'::text, now())
   WHERE id = p_component_id;
 
-  -- 5. Buat ID transaksi unik
+  -- 6. Buat ID transaksi unik
   v_borrow_id := 'BRW-' || floor(extract(epoch from now()) * 1000)::text;
 
-  -- 6. Insert catatan peminjaman
+  -- 7. Insert catatan peminjaman
   INSERT INTO public.borrowings (
     id,
     user_id,
@@ -450,12 +667,16 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'borrowing', to_jsonb(v_new_borrowing),
-    'remaining_stock', v_new_stock
+    'remaining_stock', v_new_stock,
+    'status', v_new_status
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- B. Atomic Pengembalian Komponen
+-- ------------------------------------------------------------------------------
+-- 6. PERBARUI ATOMIC RPC FUNCTION: rpc_return_component
+-- Memulihkan stok dan menghitung status ketersediaan berdasarkan sisa pinjaman
+-- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.rpc_return_component(
   p_borrow_id TEXT,
   p_condition TEXT DEFAULT 'Baik',
@@ -472,6 +693,9 @@ DECLARE
   v_return_date_str TEXT;
   v_receipt_code TEXT;
   v_updated_borrowing RECORD;
+  v_remaining_borrowed BIGINT := 0;
+  v_new_status TEXT;
+  v_inspection_id UUID := NULL;
 BEGIN
   -- 1. Ambil transaksi peminjaman dengan FOR UPDATE lock
   SELECT * INTO v_borrow
@@ -497,13 +721,13 @@ BEGIN
     RAISE EXCEPTION 'Komponen dari transaksi ini sudah pernah dikembalikan sebelumnya.';
   END IF;
 
-  -- 2. Ambil komponen
+  -- 3. Ambil komponen dengan FOR UPDATE lock
   SELECT * INTO v_comp
   FROM public.components
   WHERE id = v_borrow.component_id
   FOR UPDATE;
 
-  -- 3. Hitung distribusi stok berdasarkan kondisi pengembalian
+  -- 4. Hitung distribusi stok berdasarkan kondisi pengembalian
   v_new_stock := COALESCE(v_comp.stock, 0);
   v_new_maint := COALESCE(v_comp.maintenance_stock, 0);
   v_new_dmg := COALESCE(v_comp.damaged_stock, 0);
@@ -518,23 +742,71 @@ BEGIN
     v_new_stock := v_new_stock + v_borrow.quantity;
   END IF;
 
-  -- 4. Update stok komponen
+  -- 5. Hitung sisa peminjaman aktif lainnya untuk komponen ini (setelah transaksi ini dikembalikan)
+  SELECT COALESCE(SUM(quantity), 0) INTO v_remaining_borrowed
+  FROM public.borrowings
+  WHERE component_id = v_borrow.component_id
+    AND status = 'DIPINJAM'
+    AND id <> p_borrow_id;
+
+  -- 6. Hitung status baru
+  v_new_status := public.calculate_component_status(
+    v_comp.total_stock,
+    v_new_stock,
+    v_remaining_borrowed,
+    v_new_maint,
+    v_new_dmg,
+    v_comp.is_active
+  );
+
+  -- 7. Update stok & status komponen
   IF v_comp.id IS NOT NULL THEN
     UPDATE public.components
     SET
       stock = v_new_stock,
       maintenance_stock = v_new_maint,
       damaged_stock = v_new_dmg,
-      status = CASE WHEN v_new_stock > 0 THEN 'TERSEDIA' ELSE status END,
+      status = v_new_status,
       updated_at = timezone('utc'::text, now())
     WHERE id = v_comp.id;
   END IF;
 
-  -- 5. Format waktu pengembalian dan nomor resi
+  -- 8. Jika kondisi Perlu Pengecekan atau Rusak, buat record di component_inspections
+  IF p_condition IN ('Perlu Pengecekan', 'Rusak') THEN
+    INSERT INTO public.component_inspections (
+      borrowing_id,
+      component_id,
+      component_name,
+      component_code,
+      component_image,
+      borrower_name,
+      borrower_email,
+      borrower_nim,
+      quantity,
+      reported_condition,
+      damage_notes,
+      inspection_status
+    ) VALUES (
+      p_borrow_id,
+      v_comp.id,
+      COALESCE(v_comp.name, v_borrow.component_name),
+      v_comp.code,
+      v_comp.image,
+      v_borrow.borrower_name,
+      v_borrow.borrower_email,
+      v_borrow.nim,
+      v_borrow.quantity,
+      p_condition,
+      p_notes,
+      'pending_inspection'
+    ) RETURNING id INTO v_inspection_id;
+  END IF;
+
+  -- 9. Format waktu pengembalian dan nomor resi
   v_return_date_str := to_char(now(), 'DD Mon YYYY - HH24:MI') || ' WIB';
   v_receipt_code := 'RT-' || to_char(now(), 'YYYY') || '-' || lpad(floor(random() * 9000 + 1000)::text, 4, '0');
 
-  -- 6. Update transaksi peminjaman
+  -- 10. Update transaksi peminjaman
   UPDATE public.borrowings
   SET
     status = 'DIKEMBALIKAN',
@@ -551,10 +823,239 @@ BEGIN
     'success', true,
     'borrowing', to_jsonb(v_updated_borrowing),
     'receipt_code', v_receipt_code,
-    'new_stock', v_new_stock
+    'new_stock', v_new_stock,
+    'new_maintenance_stock', v_new_maint,
+    'new_damaged_stock', v_new_dmg,
+    'status', v_new_status,
+    'inspection_id', v_inspection_id
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: rpc_resolve_inspection (Admin inspection decision)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.rpc_resolve_inspection(
+  p_inspection_id UUID,
+  p_decision TEXT, -- 'usable' | 'under_repair' | 'retired'
+  p_notes TEXT DEFAULT ''
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_insp RECORD;
+  v_comp RECORD;
+  v_new_stock INTEGER;
+  v_new_maint INTEGER;
+  v_new_dmg INTEGER;
+  v_new_total INTEGER;
+  v_active_borrowed BIGINT := 0;
+  v_new_status TEXT;
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Akses ditolak: Hanya Admin yang dapat memproses keputusan inspeksi.';
+  END IF;
+
+  IF p_decision NOT IN ('usable', 'under_repair', 'retired') THEN
+    RAISE EXCEPTION 'Keputusan inspeksi tidak valid. Pilih antara: usable, under_repair, atau retired.';
+  END IF;
+
+  SELECT * INTO v_insp
+  FROM public.component_inspections
+  WHERE id = p_inspection_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Catatan inspeksi tidak ditemukan.';
+  END IF;
+
+  SELECT * INTO v_comp
+  FROM public.components
+  WHERE id = v_insp.component_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Komponen terkait inspeksi ini tidak ditemukan.';
+  END IF;
+
+  v_new_stock := COALESCE(v_comp.stock, 0);
+  v_new_maint := COALESCE(v_comp.maintenance_stock, 0);
+  v_new_dmg := COALESCE(v_comp.damaged_stock, 0);
+  v_new_total := COALESCE(v_comp.total_stock, 0);
+
+  IF p_decision = 'usable' THEN
+    IF v_insp.reported_condition = 'Perlu Pengecekan' OR v_insp.inspection_status = 'under_repair' THEN
+      v_new_maint := GREATEST(0, v_new_maint - v_insp.quantity);
+    ELSE
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+    END IF;
+    v_new_stock := v_new_stock + v_insp.quantity;
+
+  ELSIF p_decision = 'under_repair' THEN
+    IF v_insp.reported_condition = 'Rusak' AND v_insp.inspection_status = 'pending_inspection' THEN
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+      v_new_maint := v_new_maint + v_insp.quantity;
+    END IF;
+
+  ELSIF p_decision = 'retired' THEN
+    IF v_insp.reported_condition = 'Perlu Pengecekan' OR v_insp.inspection_status = 'under_repair' THEN
+      v_new_maint := GREATEST(0, v_new_maint - v_insp.quantity);
+    ELSE
+      v_new_dmg := GREATEST(0, v_new_dmg - v_insp.quantity);
+    END IF;
+    v_new_total := GREATEST(0, v_new_total - v_insp.quantity);
+  END IF;
+
+  SELECT COALESCE(SUM(quantity), 0) INTO v_active_borrowed
+  FROM public.borrowings
+  WHERE component_id = v_comp.id
+    AND status = 'DIPINJAM';
+
+  v_new_status := public.calculate_component_status(
+    v_new_total,
+    v_new_stock,
+    v_active_borrowed,
+    v_new_maint,
+    v_new_dmg,
+    v_comp.is_active
+  );
+
+  UPDATE public.components
+  SET
+    stock = v_new_stock,
+    total_stock = v_new_total,
+    maintenance_stock = v_new_maint,
+    damaged_stock = v_new_dmg,
+    status = v_new_status,
+    updated_at = timezone('utc'::text, now())
+  WHERE id = v_comp.id;
+
+  UPDATE public.component_inspections
+  SET
+    inspection_status = CASE WHEN p_decision = 'under_repair' THEN 'under_repair' ELSE 'inspected' END,
+    decision = p_decision,
+    decision_notes = p_notes,
+    inspected_by = auth.uid(),
+    inspected_at = timezone('utc'::text, now()),
+    updated_at = timezone('utc'::text, now())
+  WHERE id = p_inspection_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'decision', p_decision,
+    'component_id', v_comp.id,
+    'new_stock', v_new_stock,
+    'new_total_stock', v_new_total,
+    'new_maintenance_stock', v_new_maint,
+    'new_damaged_stock', v_new_dmg,
+    'new_status', v_new_status
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: get_overdue_borrowings_for_notification
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_overdue_borrowings_for_notification()
+RETURNS TABLE (
+  borrowing_id TEXT,
+  component_id TEXT,
+  component_name TEXT,
+  user_id UUID,
+  borrower_name TEXT,
+  borrower_email TEXT,
+  phone_number TEXT,
+  whatsapp_opt_in BOOLEAN,
+  due_at TIMESTAMPTZ,
+  days_overdue INTEGER,
+  pickup_lab TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    b.id AS borrowing_id,
+    b.component_id,
+    b.component_name,
+    b.user_id,
+    COALESCE(p.full_name, b.borrower_name) AS borrower_name,
+    COALESCE(p.email, b.borrower_email) AS borrower_email,
+    COALESCE(p.phone_number, p.phone) AS phone_number,
+    COALESCE(p.whatsapp_notification_opt_in, TRUE) AS whatsapp_opt_in,
+    b.due_at,
+    GREATEST(1, EXTRACT(DAY FROM (now() - b.due_at))::INTEGER) AS days_overdue,
+    COALESCE(b.pickup_lab, 'Laboratorium IoT') AS pickup_lab
+  FROM public.borrowings b
+  LEFT JOIN public.profiles p ON b.user_id = p.id
+  WHERE b.status = 'DIPINJAM'
+    AND b.due_at IS NOT NULL
+    AND b.due_at < now()
+    AND b.overdue_notified_at IS NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+-- RPC: record_overdue_notification_result
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.record_overdue_notification_result(
+  p_borrowing_id TEXT,
+  p_recipient_phone TEXT,
+  p_recipient_name TEXT,
+  p_status TEXT,
+  p_error_message TEXT DEFAULT NULL,
+  p_response_payload JSONB DEFAULT '{}'::jsonb
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_log_id UUID;
+BEGIN
+  INSERT INTO public.notification_logs (
+    borrowing_id,
+    recipient_phone,
+    recipient_name,
+    provider,
+    status,
+    error_message,
+    response_payload,
+    sent_at
+  ) VALUES (
+    p_borrowing_id,
+    p_recipient_phone,
+    p_recipient_name,
+    'whatsapp_business',
+    p_status,
+    p_error_message,
+    p_response_payload,
+    timezone('utc'::text, now())
+  ) RETURNING id INTO v_log_id;
+
+  IF p_status IN ('SENT', 'SIMULATED') THEN
+    UPDATE public.borrowings
+    SET
+      overdue_notified_at = timezone('utc'::text, now()),
+      overdue_notification_status = p_status,
+      updated_at = timezone('utc'::text, now())
+    WHERE id = p_borrowing_id;
+  ELSIF p_status LIKE 'SKIPPED%' THEN
+    UPDATE public.borrowings
+    SET
+      overdue_notification_status = p_status,
+      updated_at = timezone('utc'::text, now())
+    WHERE id = p_borrowing_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'log_id', v_log_id,
+    'borrowing_id', p_borrowing_id,
+    'status', p_status
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ------------------------------------------------------------------------------
+
+-- ==============================================================================
+-- 7. ATOMIC RPC TRANSACTIONS (Lanjutan)
+-- ==============================================================================
 
 -- C. Soft Delete / Toggle Status Aktif Komponen (Admin Only)
 CREATE OR REPLACE FUNCTION public.rpc_toggle_component_active(
@@ -625,8 +1126,8 @@ BEGIN
     RAISE EXCEPTION 'Profil pengguna target tidak ditemukan.';
   END IF;
 
-  IF v_target.role = 'admin' THEN
-    RAISE EXCEPTION 'Tidak dapat mengubah role akun administrator.';
+  IF v_target.role = 'superadmin' THEN
+    RAISE EXCEPTION 'Tidak dapat mengubah role akun superadmin.';
   END IF;
 
   IF v_action = 'approve' THEN
@@ -697,7 +1198,7 @@ BEGIN
     RAISE EXCEPTION 'Profil pengguna tidak ditemukan.';
   END IF;
 
-  IF v_user.role IN ('admin', 'dosen') THEN
+  IF v_user.role IN ('superadmin', 'dosen') THEN
     RAISE EXCEPTION 'Akun Anda sudah memiliki hak akses %.', v_user.role;
   END IF;
 
@@ -816,3 +1317,101 @@ ON CONFLICT (id) DO UPDATE SET
   stock = EXCLUDED.stock,
   total_stock = EXCLUDED.total_stock,
   status = EXCLUDED.status;
+
+-- ==============================================================================
+-- 9. SUPABASE STORAGE BUCKET: component-images
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'component-images',
+  'component-images',
+  true,
+  5242880, -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Storage RLS: Public read
+DROP POLICY IF EXISTS "Public can view component images" ON storage.objects;
+CREATE POLICY "Public can view component images"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'component-images');
+
+-- Storage RLS: Dosen & Superadmin can upload, update, delete
+DROP POLICY IF EXISTS "Dosen and Superadmin can upload component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can upload component images"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+DROP POLICY IF EXISTS "Dosen and Superadmin can update component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can update component images"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+DROP POLICY IF EXISTS "Dosen and Superadmin can delete component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can delete component images"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+-- ==============================================================================
+-- 10. RPC: rpc_update_component_image
+-- Memungkinkan Dosen & Superadmin memperbarui HANYA foto komponen
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.rpc_update_component_image(
+  p_component_id TEXT,
+  p_image_url TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_caller_role TEXT;
+  v_comp RECORD;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Akses ditolak: Anda harus login untuk memperbarui foto komponen.';
+  END IF;
+
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+
+  IF v_caller_role NOT IN ('dosen', 'superadmin') THEN
+    RAISE EXCEPTION 'Akses ditolak: Mahasiswa tidak memiliki izin untuk mengunggah atau mengubah foto komponen.';
+  END IF;
+
+  SELECT * INTO v_comp FROM public.components WHERE id = p_component_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Komponen dengan ID % tidak ditemukan.', p_component_id;
+  END IF;
+
+  IF p_image_url IS NULL OR TRIM(p_image_url) = '' THEN
+    p_image_url := '/assets/images/arduino.png';
+  END IF;
+
+  UPDATE public.components
+  SET
+    image = p_image_url,
+    updated_at = timezone('utc'::text, now())
+  WHERE id = p_component_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'component_id', p_component_id,
+    'image', p_image_url,
+    'updated_by_role', v_caller_role
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+

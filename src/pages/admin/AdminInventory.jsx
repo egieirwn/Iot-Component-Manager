@@ -12,16 +12,21 @@ import {
   Check,
   Package,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  UploadCloud,
+  Camera
 } from 'lucide-react';
 import {
   fetchComponents,
   createComponent,
   updateComponent,
   toggleComponentActive,
-  deleteComponent
+  deleteComponent,
+  uploadComponentImage,
+  validateComponentImageFile
 } from '../../services/componentService';
 import { useToast } from '../../components/common/Toast';
+import StatusBadge from '../../components/components/StatusBadge';
 
 const CATEGORIES = ['Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris'];
 const CONDITIONS = ['Baik', 'Perlu Pengecekan', 'Rusak'];
@@ -41,6 +46,10 @@ export default function AdminInventory() {
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+
+  // Image Upload State
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const [formData, setFormData] = useState({
     code: '',
@@ -98,6 +107,8 @@ export default function AdminInventory() {
     });
     setFormErrors({});
     setEditingId(null);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   const openCreateModal = () => {
@@ -110,6 +121,7 @@ export default function AdminInventory() {
     resetForm();
     setModalMode('edit');
     setEditingId(comp.id);
+    setImagePreview(comp.image || '/assets/images/arduino.png');
     setFormData({
       code: comp.code || '',
       name: comp.name || '',
@@ -147,12 +159,39 @@ export default function AdminInventory() {
     return Object.keys(errs).length === 0;
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateComponentImageFile(file);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleClearImage = () => {
+    setImageFile(null);
+    setImagePreview('/assets/images/arduino.png');
+    setFormData((prev) => ({ ...prev, image: '/assets/images/arduino.png' }));
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
+      let finalImageUrl = formData.image;
+      if (imageFile) {
+        const identifier = editingId || formData.code.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_') || 'comp';
+        const uploadRes = await uploadComponentImage(imageFile, identifier);
+        finalImageUrl = uploadRes.imageUrl;
+      }
+
       const payload = {
         code: formData.code.trim(),
         name: formData.name.trim(),
@@ -164,7 +203,7 @@ export default function AdminInventory() {
         condition: formData.condition,
         location: formData.location.trim(),
         description: formData.description.trim(),
-        image: formData.image,
+        image: finalImageUrl,
         tags: formData.tags
           ? formData.tags
               .split(',')
@@ -632,6 +671,99 @@ export default function AdminInventory() {
             </div>
 
             <form onSubmit={handleFormSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Foto Komponen */}
+              <div
+                style={{
+                  padding: '0.875rem 1rem',
+                  border: '1px dashed var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-bg-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.25rem'
+                }}
+              >
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: '#27272A',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <img
+                    src={imagePreview || formData.image || '/assets/images/arduino.png'}
+                    alt="Preview Komponen"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    onError={(e) => {
+                      e.target.src = '/assets/images/arduino.png';
+                    }}
+                  />
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="comp-image-file" className="form-label" style={{ marginBottom: '0.2rem' }}>
+                    Foto Komponen (Opsional)
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                    Format file: JPG, PNG, atau WEBP (maksimal 5MB).
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <label
+                      htmlFor="comp-image-file"
+                      className="btn-outline"
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.8125rem',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.375rem'
+                      }}
+                    >
+                      <Camera size={14} />
+                      {imageFile ? 'Ganti Foto' : 'Pilih Foto'}
+                    </label>
+                    <input
+                      id="comp-image-file"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileChange}
+                      disabled={isSubmitting}
+                      style={{ display: 'none' }}
+                    />
+                    {imageFile && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600 }}>
+                        {imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB)
+                      </span>
+                    )}
+                    {(imageFile || (formData.image && formData.image !== '/assets/images/arduino.png')) && (
+                      <button
+                        type="button"
+                        onClick={handleClearImage}
+                        disabled={isSubmitting}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#DC2626',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0
+                        }}
+                      >
+                        Reset ke Default
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
                 {/* Kode Komponen */}
                 <div className="form-group">
