@@ -175,26 +175,32 @@ CREATE TRIGGER trigger_borrowings_updated_at
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
-  v_full_name TEXT;
+  v_raw_role TEXT;
   v_requested_role TEXT;
-  v_role_request_status TEXT;
-  v_role TEXT;
+  v_status_req TEXT;
+  v_full_name TEXT;
+  v_phone TEXT;
 BEGIN
   v_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', '');
-  v_requested_role := NEW.raw_user_meta_data->>'requested_role';
+  v_raw_role := LOWER(COALESCE(
+    NEW.raw_user_meta_data->>'requested_role',
+    NEW.raw_user_meta_data->>'role',
+    'mahasiswa'
+  ));
 
   -- Aturan Keamanan Role:
   -- Role publik default selalu 'mahasiswa'.
   -- Jika user meminta role 'dosen', role tetap 'mahasiswa' dan status permintaan menjadi 'pending'.
-  -- Role 'admin' TIDAK PERNAH diberikan otomatis melalui registrasi publik.
-  IF v_requested_role = 'dosen' THEN
-    v_role := 'mahasiswa';
-    v_role_request_status := 'pending';
+  -- Role 'superadmin' TIDAK PERNAH diberikan otomatis melalui registrasi publik.
+  IF v_raw_role = 'dosen' THEN
+    v_requested_role := 'dosen';
+    v_status_req := 'pending';
   ELSE
-    v_role := 'mahasiswa';
-    v_requested_role := NULL;
-    v_role_request_status := 'none';
+    v_requested_role := 'none';
+    v_status_req := 'none';
   END IF;
+
+  v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
 
   INSERT INTO public.profiles (
     id,
@@ -202,17 +208,23 @@ BEGIN
     role,
     requested_role,
     role_request_status,
+    phone,
+    phone_number,
+    whatsapp_notification_opt_in,
     profile_completed
   ) VALUES (
     NEW.id,
     v_full_name,
-    v_role,
+    'mahasiswa',
     v_requested_role,
-    v_role_request_status,
+    v_status_req,
+    v_phone,
+    v_phone,
+    TRUE,
     FALSE
   )
   ON CONFLICT (id) DO UPDATE SET
-    full_name = EXCLUDED.full_name;
+    full_name = CASE WHEN profiles.full_name = '' THEN EXCLUDED.full_name ELSE profiles.full_name END;
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN

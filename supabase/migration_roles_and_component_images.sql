@@ -113,45 +113,62 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
-  req_role TEXT;
-  assigned_role TEXT;
-  status_req TEXT;
+  v_raw_role TEXT;
+  v_requested_role TEXT;
+  v_status_req TEXT;
+  v_full_name TEXT;
+  v_phone TEXT;
 BEGIN
-  req_role := LOWER(COALESCE(NEW.raw_user_meta_data->>'role', 'mahasiswa'));
+  -- Ambil nama lengkap dari user_metadata
+  v_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', '');
+
+  -- Ambil permohonan role (mendukung 'requested_role' atau 'role')
+  v_raw_role := LOWER(COALESCE(
+    NEW.raw_user_meta_data->>'requested_role',
+    NEW.raw_user_meta_data->>'role',
+    'mahasiswa'
+  ));
 
   -- Role superadmin TIDAK PERNAH diberikan otomatis melalui registrasi publik
-  IF req_role = 'dosen' THEN
-    assigned_role := 'mahasiswa';
-    status_req := 'pending';
+  IF v_raw_role = 'dosen' THEN
+    v_requested_role := 'dosen';
+    v_status_req := 'pending';
   ELSE
-    assigned_role := 'mahasiswa';
-    status_req := 'none';
+    v_requested_role := 'none';
+    v_status_req := 'none';
   END IF;
 
+  v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
+
+  -- Catatan: Tabel profiles tidak memiliki kolom email (email tersimpan di auth.users)
   INSERT INTO public.profiles (
     id,
-    email,
     full_name,
     role,
     requested_role,
     role_request_status,
     phone,
     phone_number,
-    whatsapp_notification_opt_in
+    whatsapp_notification_opt_in,
+    profile_completed
   ) VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    assigned_role,
-    CASE WHEN req_role = 'dosen' THEN 'dosen' ELSE 'none' END,
-    status_req,
-    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
-    TRUE
+    v_full_name,
+    'mahasiswa',
+    v_requested_role,
+    v_status_req,
+    v_phone,
+    v_phone,
+    TRUE,
+    FALSE
   )
   ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email;
+    full_name = CASE WHEN profiles.full_name = '' THEN EXCLUDED.full_name ELSE profiles.full_name END;
 
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Mencegah kegagalan registrasi Supabase Auth jika terjadi error transient pada tabel profil
+  RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
