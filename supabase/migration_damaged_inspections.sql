@@ -178,7 +178,7 @@ BEGIN
       v_comp.image,
       v_borrow.borrower_name,
       v_borrow.borrower_email,
-      v_borrow.nim,
+      v_borrow.borrower_nim,
       v_borrow.quantity,
       p_condition,
       p_notes,

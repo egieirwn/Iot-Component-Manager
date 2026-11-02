@@ -203,6 +203,22 @@ async function runInspectionTests() {
     assert.strictEqual(totalStock, availableStock + borrowedStock + maintenanceStock + damagedStock, 'Conservation of stock');
   });
 
+  // --------------------------------------------------------------------------
+  // TEST CASE 6: Verify rpc_return_component SQL column mapping for damaged returns
+  // --------------------------------------------------------------------------
+  test('Test Case 6: Schema and migration SQL uses borrower_nim from borrowings (not non-existent nim)', () => {
+    const fs = require('fs');
+    const path = require('path');
+
+    for (const file of ['supabase/migration_damaged_inspections.sql', 'supabase/schema.sql']) {
+      const fullPath = path.resolve(__dirname, '..', file);
+      assert.ok(fs.existsSync(fullPath), `${file} exists`);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      assert.ok(!content.includes('v_borrow.nim,'), `${file} must not contain v_borrow.nim`);
+      assert.ok(content.includes('v_borrow.borrower_nim,'), `${file} must use v_borrow.borrower_nim`);
+    }
+  });
+
   console.log('\n================================================================');
   console.log(`📊 SUMMARY: ${passedTests} / ${totalTests} TESTS PASSED CLEANLY! (${Math.round((passedTests / totalTests) * 100)}%)`);
   console.log('================================================================\n');
