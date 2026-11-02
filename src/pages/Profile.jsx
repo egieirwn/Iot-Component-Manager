@@ -176,7 +176,7 @@ export default function Profile() {
   };
 
   const userRole = profile?.role || 'mahasiswa';
-  const roleDisplay = userRole === 'admin' ? 'Administrator' : userRole === 'dosen' ? 'Dosen / Peneliti' : 'Mahasiswa';
+  const roleDisplay = userRole === 'superadmin' ? 'Superadmin' : userRole === 'dosen' ? 'Dosen' : 'Mahasiswa';
   const isPendingDosen = profile?.role_request_status === 'pending';
   const isRejectedDosen = profile?.role_request_status === 'rejected';
 
@@ -382,13 +382,12 @@ export default function Profile() {
             <h2 style={{ fontSize: '1.375rem', fontWeight: 800 }}>{profile?.full_name || 'Pengguna'}</h2>
             <span
               style={{
-                backgroundColor: userRole === 'admin' ? '#FEE2E2' : userRole === 'dosen' ? '#EDE9FE' : 'var(--color-primary-light)',
-                color: userRole === 'admin' ? '#991B1B' : userRole === 'dosen' ? '#5B21B6' : 'var(--color-primary)',
+                backgroundColor: userRole === 'superadmin' ? '#FEE2E2' : userRole === 'dosen' ? '#EDE9FE' : 'var(--color-primary-light)',
+                color: userRole === 'superadmin' ? '#991B1B' : userRole === 'dosen' ? '#5B21B6' : 'var(--color-primary)',
                 padding: '0.2rem 0.625rem',
                 borderRadius: 'var(--radius-full)',
                 fontSize: '0.75rem',
-                fontWeight: 700,
-                textTransform: 'uppercase'
+                fontWeight: 700
               }}
             >
               {roleDisplay}

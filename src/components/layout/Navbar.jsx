@@ -54,10 +54,10 @@ export default function Navbar({ onSearch, onSearchSubmit, searchTerm = '' }) {
   const userRole = profile?.role || 'mahasiswa';
 
   const renderUserSubtitle = () => {
-    if (userRole === 'admin') {
+    if (userRole === 'superadmin') {
       return (
         <>
-          <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Administrator</span>
+          <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Superadmin</span>
           {profile?.study_program || profile?.faculty ? ` · ${profile.study_program || profile.faculty}` : ' · Lab IoT'}
         </>
       );
@@ -156,11 +156,11 @@ export default function Navbar({ onSearch, onSearchSubmit, searchTerm = '' }) {
                       textTransform: 'uppercase',
                       padding: '0.125rem 0.4rem',
                       borderRadius: 'var(--radius-sm)',
-                      backgroundColor: userRole === 'admin' ? '#FEE2E2' : userRole === 'dosen' ? '#EDE9FE' : 'var(--color-primary-light)',
-                      color: userRole === 'admin' ? '#991B1B' : userRole === 'dosen' ? '#5B21B6' : 'var(--color-primary)'
+                      backgroundColor: userRole === 'superadmin' ? '#FEE2E2' : userRole === 'dosen' ? '#EDE9FE' : 'var(--color-primary-light)',
+                      color: userRole === 'superadmin' ? '#991B1B' : userRole === 'dosen' ? '#5B21B6' : 'var(--color-primary)'
                     }}
                   >
-                    {userRole}
+                    {userRole === 'superadmin' ? 'Superadmin' : userRole === 'dosen' ? 'Dosen' : 'Mahasiswa'}
                   </span>
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: 0 }}>{user?.email || profile?.email}</p>
@@ -184,7 +184,7 @@ export default function Navbar({ onSearch, onSearchSubmit, searchTerm = '' }) {
                 <User size={16} /> Profil Saya
               </Link>
 
-              {userRole === 'admin' && (
+              {userRole === 'superadmin' && (
                 <>
                   <Link
                     to="/admin/inventory"
@@ -202,6 +202,23 @@ export default function Navbar({ onSearch, onSearchSubmit, searchTerm = '' }) {
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     <span style={{ fontSize: '0.9rem' }}>📦</span> Kelola Inventaris
+                  </Link>
+                  <Link
+                    to="/admin/inspections"
+                    onClick={() => setDropdownOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.625rem',
+                      padding: '0.6875rem 1rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--color-text-main)',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg-subtle)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <span style={{ fontSize: '0.9rem' }}>🔧</span> Inspeksi Komponen
                   </Link>
                   <Link
                     to="/admin/role-requests"

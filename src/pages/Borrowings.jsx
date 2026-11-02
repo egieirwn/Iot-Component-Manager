@@ -564,7 +564,8 @@ export default function Borrowings() {
   // =========================================================================
   // RENDER NORMAL BORROWINGS LIST & HISTORY TAB
   // =========================================================================
-  const isStaff = profile?.role === 'admin' || profile?.role === 'dosen';
+  const isStaff = profile?.role === 'superadmin' || profile?.role === 'dosen';
+  const isSuperadmin = profile?.role === 'superadmin';
 
   return (
     <div className="borrowings-page">
@@ -578,7 +579,7 @@ export default function Borrowings() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {isStaff && (
+          {isSuperadmin && (
             <button
               type="button"
               className="btn-outline"

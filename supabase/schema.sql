@@ -10,8 +10,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL DEFAULT '',
-  role TEXT NOT NULL DEFAULT 'mahasiswa' CHECK (role IN ('mahasiswa', 'dosen', 'admin')),
-  requested_role TEXT CHECK (requested_role IN ('mahasiswa', 'dosen', 'admin')),
+  role TEXT NOT NULL DEFAULT 'mahasiswa' CHECK (role IN ('mahasiswa', 'dosen', 'superadmin')),
+  requested_role TEXT CHECK (requested_role IN ('none', 'dosen')),
   role_request_status TEXT NOT NULL DEFAULT 'none' CHECK (role_request_status IN ('none', 'pending', 'approved', 'rejected')),
   identity_number TEXT DEFAULT '', -- NIM untuk mahasiswa, NIP untuk dosen
   study_program TEXT DEFAULT '',   -- Program studi atau Jurusan
@@ -236,22 +236,22 @@ BEGIN
   IF auth.uid() IS NOT NULL THEN
     SELECT role INTO caller_role FROM public.profiles WHERE id = auth.uid();
 
-    -- Jika bukan admin
-    IF (caller_role IS DISTINCT FROM 'admin') THEN
+    -- Jika bukan superadmin
+    IF (caller_role IS DISTINCT FROM 'superadmin') THEN
       -- 1. Pengguna biasa TIDAK PERNAH boleh mengubah role akun secara langsung
       IF (NEW.role IS DISTINCT FROM OLD.role) THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat mengubah role akun.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat mengubah role akun.';
       END IF;
 
       -- 2. Pengguna biasa TIDAK BOLEH menyetujui pengajuannya sendiri (menjadi 'approved')
       IF (NEW.role_request_status = 'approved' AND OLD.role_request_status IS DISTINCT FROM 'approved') THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat menyetujui verifikasi role.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat menyetujui verifikasi role.';
       END IF;
 
       -- 3. Pengguna biasa TIDAK BOLEH memanipulasi kolom audit review
       IF (NEW.role_reviewed_by IS DISTINCT FROM OLD.role_reviewed_by) OR
          (NEW.role_reviewed_at IS DISTINCT FROM OLD.role_reviewed_at) THEN
-        RAISE EXCEPTION 'Akses ditolak: Hanya administrator yang dapat mengisi metadata peninjauan.';
+        RAISE EXCEPTION 'Akses ditolak: Hanya Superadmin yang dapat mengisi metadata peninjauan.';
       END IF;
 
       -- 4. Pengguna biasa hanya boleh mengajukan ulang dari 'none' atau 'rejected' ke 'pending' dengan requested_role = 'dosen'
@@ -302,12 +302,25 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.components ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.borrowings ENABLE ROW LEVEL SECURITY;
 
--- Helper function: cek apakah user adalah admin
-CREATE OR REPLACE FUNCTION public.is_admin()
+-- Helper functions: verifikasi role superadmin dan dosen
+CREATE OR REPLACE FUNCTION public.is_superadmin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = 'admin'
+    WHERE id = auth.uid() AND role = 'superadmin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT public.is_superadmin();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.is_dosen()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'dosen'
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
@@ -327,39 +340,39 @@ CREATE POLICY "Users can insert own initial profile"
     AND role = 'mahasiswa'
   );
 
--- Pengguna hanya dapat memperbarui profil miliknya sendiri, atau Admin dapat memperbarui semua
+-- Pengguna hanya dapat memperbarui profil miliknya sendiri, atau Superadmin dapat memperbarui semua
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   TO authenticated
-  USING (auth.uid() = id OR public.is_admin())
-  WITH CHECK (auth.uid() = id OR public.is_admin());
+  USING (auth.uid() = id OR public.is_superadmin())
+  WITH CHECK (auth.uid() = id OR public.is_superadmin());
 
 -- B. COMPONENTS POLICIES
--- Mahasiswa & Dosen hanya dapat melihat komponen aktif, Admin dapat melihat semua
+-- Mahasiswa & Dosen hanya dapat melihat komponen aktif, Superadmin dapat melihat semua
 CREATE POLICY "Active components are viewable by everyone, all by admin"
   ON public.components FOR SELECT
   TO anon, authenticated
-  USING (is_active = TRUE OR public.is_admin());
+  USING (is_active = TRUE OR public.is_superadmin());
 
--- Hanya Admin yang boleh INSERT, UPDATE, DELETE komponen secara langsung
+-- Hanya Superadmin yang boleh INSERT, UPDATE, DELETE komponen secara langsung
 CREATE POLICY "Admins can insert components"
   ON public.components FOR INSERT
   TO authenticated
-  WITH CHECK (public.is_admin());
+  WITH CHECK (public.is_superadmin());
 
 CREATE POLICY "Admins can update components"
   ON public.components FOR UPDATE
   TO authenticated
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
+  USING (public.is_superadmin())
+  WITH CHECK (public.is_superadmin());
 
 CREATE POLICY "Admins can delete components"
   ON public.components FOR DELETE
   TO authenticated
-  USING (public.is_admin());
+  USING (public.is_superadmin());
 
 -- C. BORROWINGS POLICIES
--- Pengguna hanya dapat melihat peminjaman miliknya sendiri, kecuali Admin atau Dosen dapat melihat semua
+-- Pengguna hanya dapat melihat peminjaman miliknya sendiri, kecuali Superadmin atau Dosen dapat melihat semua
 CREATE POLICY "Users can view own borrowings or staff can view all"
   ON public.borrowings FOR SELECT
   TO authenticated
@@ -367,7 +380,7 @@ CREATE POLICY "Users can view own borrowings or staff can view all"
     user_id = auth.uid() OR
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'dosen')
+      WHERE id = auth.uid() AND role IN ('superadmin', 'dosen')
     )
   );
 
@@ -1113,8 +1126,8 @@ BEGIN
     RAISE EXCEPTION 'Profil pengguna target tidak ditemukan.';
   END IF;
 
-  IF v_target.role = 'admin' THEN
-    RAISE EXCEPTION 'Tidak dapat mengubah role akun administrator.';
+  IF v_target.role = 'superadmin' THEN
+    RAISE EXCEPTION 'Tidak dapat mengubah role akun superadmin.';
   END IF;
 
   IF v_action = 'approve' THEN
@@ -1185,7 +1198,7 @@ BEGIN
     RAISE EXCEPTION 'Profil pengguna tidak ditemukan.';
   END IF;
 
-  IF v_user.role IN ('admin', 'dosen') THEN
+  IF v_user.role IN ('superadmin', 'dosen') THEN
     RAISE EXCEPTION 'Akun Anda sudah memiliki hak akses %.', v_user.role;
   END IF;
 
@@ -1304,3 +1317,101 @@ ON CONFLICT (id) DO UPDATE SET
   stock = EXCLUDED.stock,
   total_stock = EXCLUDED.total_stock,
   status = EXCLUDED.status;
+
+-- ==============================================================================
+-- 9. SUPABASE STORAGE BUCKET: component-images
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'component-images',
+  'component-images',
+  true,
+  5242880, -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Storage RLS: Public read
+DROP POLICY IF EXISTS "Public can view component images" ON storage.objects;
+CREATE POLICY "Public can view component images"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'component-images');
+
+-- Storage RLS: Dosen & Superadmin can upload, update, delete
+DROP POLICY IF EXISTS "Dosen and Superadmin can upload component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can upload component images"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+DROP POLICY IF EXISTS "Dosen and Superadmin can update component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can update component images"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+DROP POLICY IF EXISTS "Dosen and Superadmin can delete component images" ON storage.objects;
+CREATE POLICY "Dosen and Superadmin can delete component images"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'component-images'
+    AND auth.uid() IS NOT NULL
+    AND (public.is_superadmin() OR public.is_dosen())
+  );
+
+-- ==============================================================================
+-- 10. RPC: rpc_update_component_image
+-- Memungkinkan Dosen & Superadmin memperbarui HANYA foto komponen
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.rpc_update_component_image(
+  p_component_id TEXT,
+  p_image_url TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_caller_role TEXT;
+  v_comp RECORD;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Akses ditolak: Anda harus login untuk memperbarui foto komponen.';
+  END IF;
+
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+
+  IF v_caller_role NOT IN ('dosen', 'superadmin') THEN
+    RAISE EXCEPTION 'Akses ditolak: Mahasiswa tidak memiliki izin untuk mengunggah atau mengubah foto komponen.';
+  END IF;
+
+  SELECT * INTO v_comp FROM public.components WHERE id = p_component_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Komponen dengan ID % tidak ditemukan.', p_component_id;
+  END IF;
+
+  IF p_image_url IS NULL OR TRIM(p_image_url) = '' THEN
+    p_image_url := '/assets/images/arduino.png';
+  END IF;
+
+  UPDATE public.components
+  SET
+    image = p_image_url,
+    updated_at = timezone('utc'::text, now())
+  WHERE id = p_component_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'component_id', p_component_id,
+    'image', p_image_url,
+    'updated_by_role', v_caller_role
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+

@@ -63,11 +63,11 @@ export default function App() {
         <Route path="/borrowings" element={<Borrowings />} />
         <Route path="/profile" element={<Profile />} />
 
-        {/* Admin Only Routes (Guarded by allowedRoles={['admin']}) */}
+        {/* Superadmin Only Routes (Guarded by allowedRoles={['superadmin']}) */}
         <Route
           path="/admin/inventory"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['superadmin']}>
               <AdminInventory />
             </ProtectedRoute>
           }
@@ -75,7 +75,7 @@ export default function App() {
         <Route
           path="/admin/inspections"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['superadmin']}>
               <ComponentInspections />
             </ProtectedRoute>
           }
@@ -83,7 +83,7 @@ export default function App() {
         <Route
           path="/admin/role-requests"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['superadmin']}>
               <RoleRequests />
             </ProtectedRoute>
           }

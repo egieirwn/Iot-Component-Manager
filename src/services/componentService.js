@@ -541,3 +541,132 @@ export const resolveInspection = async ({ inspectionId, decision, notes = '' }) 
 
   return data;
 };
+
+// ==========================================================================
+// Component Image Upload & Management (Dosen & Superadmin)
+// ==========================================================================
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/**
+ * Validasi file foto komponen sebelum diunggah
+ */
+export const validateComponentImageFile = (file) => {
+  if (!file) {
+    return { valid: false, isValid: false, error: 'Silakan pilih file gambar.' };
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      isValid: false,
+      error: 'Format file tidak didukung. Harap unggah file gambar (JPG, PNG, atau WEBP).'
+    };
+  }
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    return {
+      valid: false,
+      isValid: false,
+      error: 'Ukuran file gambar maksimal 5 MB.'
+    };
+  }
+
+  return { valid: true, isValid: true };
+};
+
+/**
+ * Mengunggah file foto komponen ke Supabase Storage (bucket 'component-images')
+ * dan memperbarui referensi foto di tabel components via RPC rpc_update_component_image
+ */
+export const uploadComponentImage = async (file, componentId) => {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase belum dikonfigurasi.');
+  }
+
+  const validation = validateComponentImageFile(file);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  if (!componentId) {
+    throw new Error('ID komponen diperlukan untuk mengunggah gambar.');
+  }
+
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const fileName = `${componentId}-${Date.now()}.${fileExt}`;
+  const filePath = `components/${fileName}`;
+
+  try {
+    // 1. Upload ke Supabase Storage
+    const { data: uploadData, error: uploadErr } = await supabase.storage
+      .from('component-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type
+      });
+
+    if (uploadErr) {
+      console.error('Storage upload error:', uploadErr);
+      throw new Error(uploadErr.message || 'Gagal mengunggah gambar ke storage.');
+    }
+
+    // 2. Dapatkan Public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('component-images')
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData?.publicUrl;
+    if (!publicUrl) {
+      throw new Error('Gagal mendapatkan URL publik gambar.');
+    }
+
+    // 3. Simpan referensi foto ke database menggunakan RPC rpc_update_component_image
+    // Memastikan Dosen hanya dapat memperbarui foto tanpa mengubah metadata/stok komponen
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('rpc_update_component_image', {
+      p_component_id: componentId,
+      p_image_url: publicUrl
+    });
+
+    if (rpcErr) {
+      console.error('RPC rpc_update_component_image error:', rpcErr);
+      throw new Error(rpcErr.message || 'Gagal memperbarui referensi foto komponen di database.');
+    }
+
+    return {
+      success: true,
+      imageUrl: publicUrl,
+      componentId
+    };
+  } catch (err) {
+    console.error('uploadComponentImage error:', err);
+    throw err;
+  }
+};
+
+/**
+ * Menghapus foto komponen dan mengembalikan ke foto default
+ */
+export const removeComponentImage = async (componentId, defaultImageUrl = '/assets/images/arduino.png') => {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase belum dikonfigurasi.');
+  }
+
+  const { data, error } = await supabase.rpc('rpc_update_component_image', {
+    p_component_id: componentId,
+    p_image_url: defaultImageUrl
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Gagal menghapus foto komponen.');
+  }
+
+  return {
+    success: true,
+    imageUrl: defaultImageUrl,
+    componentId
+  };
+};
+
