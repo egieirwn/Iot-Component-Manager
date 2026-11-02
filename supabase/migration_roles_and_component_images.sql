@@ -10,22 +10,44 @@
 --   5. Restrict inspection resolution & inventory mutations strictly to Superadmin
 -- ==============================================================================
 
--- 1. MIGRASI DATA ROLE YANG ADA
--- Ubah akun 'admin' yang ada menjadi 'superadmin' tanpa menghapus data
-UPDATE public.profiles
-SET role = 'superadmin'
-WHERE role = 'admin';
-
--- 2. UPDATE CHECK CONSTRAINT TABEL PROFILES
+-- 1. HAPUS CHECK CONSTRAINT LAMA PADA TABEL PROFILES TERLEBIH DAHULU
+-- Constraint lama harus dilepas terlebih dahulu agar PostgreSQL mengizinkan nilai 'superadmin'
 ALTER TABLE public.profiles
   DROP CONSTRAINT IF EXISTS profiles_role_check;
 
 ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_requested_role_check;
+
+-- Hapus juga jika ada constraint dinamis lain yang memeriksa kolom role
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT con.conname
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+    WHERE nsp.nspname = 'public'
+      AND rel.relname = 'profiles'
+      AND con.contype = 'c'
+      AND pg_get_constraintdef(con.oid) ILIKE '%role%'
+      AND con.conname NOT IN ('profiles_role_check', 'profiles_requested_role_check')
+  ) LOOP
+    EXECUTE 'ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+  END LOOP;
+END $$;
+
+-- 2. MIGRASI DATA ROLE YANG ADA
+-- Ubah akun 'admin' yang ada menjadi 'superadmin' tanpa menghapus data
+UPDATE public.profiles
+SET role = 'superadmin'
+WHERE role = 'admin' OR role = 'staff_lab' OR (role NOT IN ('mahasiswa', 'dosen', 'superadmin') AND full_name ILIKE '%admin%');
+
+-- 3. TERAPKAN CHECK CONSTRAINT BARU DENGAN 3 ROLE RESMI
+ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('mahasiswa', 'dosen', 'superadmin'));
-
-ALTER TABLE public.profiles
-  DROP CONSTRAINT IF EXISTS profiles_requested_role_check;
 
 ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_requested_role_check
@@ -163,7 +185,7 @@ VALUES (
   'component-images',
   true,
   5242880, -- 5 MB
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,
@@ -458,3 +480,4 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
