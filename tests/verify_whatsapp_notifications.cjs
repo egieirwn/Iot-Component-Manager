@@ -174,6 +174,25 @@ async function runWhatsAppTests() {
     assert.strictEqual(res.status, 'SKIPPED_NO_PHONE');
   });
 
+  // --------------------------------------------------------------------------
+  // TEST CASE 7: Schema and migration SQL check for p.email absence
+  // --------------------------------------------------------------------------
+  test('Test Case 7: SQL functions do not reference non-existent p.email', () => {
+    const fs = require('fs');
+    const path = require('path');
+
+    for (const file of [
+      'supabase/migration_whatsapp_overdue_notifications.sql',
+      'supabase/schema.sql'
+    ]) {
+      const fullPath = path.resolve(__dirname, '..', file);
+      assert.ok(fs.existsSync(fullPath), `${file} exists`);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      assert.ok(!content.includes('p.email'), `${file} must not reference p.email`);
+      assert.ok(content.includes('b.borrower_email AS borrower_email'), `${file} must use b.borrower_email`);
+    }
+  });
+
   console.log('\n================================================================');
   console.log(`📊 SUMMARY: ${passedTests} / ${totalTests} TESTS PASSED CLEANLY! (${Math.round((passedTests / totalTests) * 100)}%)`);
   console.log('================================================================\n');

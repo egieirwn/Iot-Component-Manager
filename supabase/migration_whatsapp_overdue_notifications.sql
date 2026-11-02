@@ -101,7 +101,7 @@ BEGIN
     b.component_name,
     b.user_id,
     COALESCE(p.full_name, b.borrower_name) AS borrower_name,
-    COALESCE(p.email, b.borrower_email) AS borrower_email,
+    b.borrower_email AS borrower_email,
     COALESCE(p.phone_number, p.phone) AS phone_number,
     COALESCE(p.whatsapp_notification_opt_in, TRUE) AS whatsapp_opt_in,
     b.due_at,
