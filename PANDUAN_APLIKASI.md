@@ -111,7 +111,7 @@ Menu Administrator hanya dapat diakses oleh akun yang memiliki role `admin`.
 2. **Manajemen Katalog Komponen (`/admin/inventory`):**
    * **Menambah Komponen Baru:**
      * Klik tombol **+ Tambah Komponen**.
-     * Isi Kode Komponen (misal: `MCU-00215`), Nama, Kategori, Kondisi Fisik, Stok Tersedia, Stok Maintenance, Stok Rusak, dan Lokasi Rak.
+     * Isi Kode Komponen (misal: `MCU-00215`; untuk kategori Aktuator gunakan prefix `AKT`, misalnya `AKT-00001`), Nama, Kategori, Kondisi Fisik, Stok Tersedia, Stok Maintenance, Stok Rusak, dan Lokasi Rak.
      * Tentukan URL atau file foto komponen untuk katalog visual.
      * Klik **Tambahkan ke Inventaris**.
    * **Mengubah Data & Stok Komponen:**
@@ -171,4 +171,3 @@ Jika Anda ingin menjalankan atau mengembangkan aplikasi ini di komputer lokal:
 ---
 
 *Dokumen ini dibuat secara khusus untuk dokumentasi teknis dan panduan operasional sistem Campus IoT Laboratorium.*
-

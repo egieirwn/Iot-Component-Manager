@@ -29,6 +29,13 @@ import { useToast } from '../../components/common/Toast';
 import StatusBadge from '../../components/components/StatusBadge';
 
 const CATEGORIES = ['Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris', 'Aktuator'];
+const CATEGORY_CODE_PREFIXES = {
+  Mikrokontroler: 'MCU',
+  Sensor: 'SNS',
+  Modul: 'MOD',
+  Aksesoris: 'ACC',
+  Aktuator: 'AKT'
+};
 const CONDITIONS = ['Baik', 'Perlu Pengecekan', 'Rusak'];
 
 export default function AdminInventory() {
@@ -68,6 +75,7 @@ export default function AdminInventory() {
     specConnection: '',
     specIncludes: ''
   });
+  const codeExample = `${CATEGORY_CODE_PREFIXES[formData.category] || 'CMP'}-00001`;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -144,7 +152,7 @@ export default function AdminInventory() {
 
   const validateForm = () => {
     const errs = {};
-    if (!formData.code.trim()) errs.code = 'Kode komponen wajib diisi (misal: MCU-00101).';
+    if (!formData.code.trim()) errs.code = `Kode komponen wajib diisi (misal: ${codeExample}).`;
     if (!formData.name.trim()) errs.name = 'Nama komponen wajib diisi.';
     if (isNaN(Number(formData.stock)) || Number(formData.stock) < 0) {
       errs.stock = 'Stok tersedia minimal 0.';
@@ -775,7 +783,7 @@ export default function AdminInventory() {
                     type="text"
                     value={formData.code}
                     onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
-                    placeholder="misal: MCU-00215"
+                    placeholder={`misal: ${codeExample}`}
                     className={`form-input ${formErrors.code ? 'has-error' : ''}`}
                     disabled={isSubmitting}
                   />
