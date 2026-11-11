@@ -37,7 +37,7 @@ export default function Components() {
     loadData();
   }, [loadData]);
 
-  const categories = ['Semua', 'Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris'];
+  const categories = ['Semua', 'Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris', 'Aktuator'];
   const statuses = [
     'Semua',
     'Tersedia',

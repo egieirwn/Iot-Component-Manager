@@ -28,7 +28,7 @@ import {
 import { useToast } from '../../components/common/Toast';
 import StatusBadge from '../../components/components/StatusBadge';
 
-const CATEGORIES = ['Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris'];
+const CATEGORIES = ['Mikrokontroler', 'Sensor', 'Modul', 'Aksesoris', 'Aktuator'];
 const CONDITIONS = ['Baik', 'Perlu Pengecekan', 'Rusak'];
 
 export default function AdminInventory() {
